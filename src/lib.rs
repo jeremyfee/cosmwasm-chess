@@ -1,8 +1,7 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+pub mod contract;
+pub mod cwchess;
+mod error;
+pub mod msg;
+pub mod state;
+
+pub use crate::error::ContractError;
