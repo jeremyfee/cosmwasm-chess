@@ -23,11 +23,7 @@ pub enum CwChessColor {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum CwChessStatus {
-    Ongoing,
-    // custom results
-    WhiteTimeout,
-    BlackTimeout,
+pub enum CwChessResult {
     // chess results
     WhiteCheckmates,
     WhiteResigns,
@@ -36,18 +32,20 @@ pub enum CwChessStatus {
     Stalemate,
     DrawAccepted,
     DrawDeclared,
+    // custom results
 }
 
-impl CwChessStatus {
-    fn from_result(result: GameResult) -> CwChessStatus {
+impl CwChessResult {
+    fn from_result(result: Option<GameResult>) -> Option<CwChessResult> {
         match result {
-            GameResult::WhiteCheckmates => CwChessStatus::WhiteCheckmates,
-            GameResult::WhiteResigns => CwChessStatus::WhiteResigns,
-            GameResult::BlackCheckmates => CwChessStatus::BlackCheckmates,
-            GameResult::BlackResigns => CwChessStatus::BlackResigns,
-            GameResult::Stalemate => CwChessStatus::Stalemate,
-            GameResult::DrawAccepted => CwChessStatus::DrawAccepted,
-            GameResult::DrawDeclared => CwChessStatus::DrawDeclared,
+            None => None,
+            Some(GameResult::WhiteCheckmates) => Some(CwChessResult::WhiteCheckmates),
+            Some(GameResult::WhiteResigns) => Some(CwChessResult::WhiteResigns),
+            Some(GameResult::BlackCheckmates) => Some(CwChessResult::BlackCheckmates),
+            Some(GameResult::BlackResigns) => Some(CwChessResult::BlackResigns),
+            Some(GameResult::Stalemate) => Some(CwChessResult::Stalemate),
+            Some(GameResult::DrawAccepted) => Some(CwChessResult::DrawAccepted),
+            Some(GameResult::DrawDeclared) => Some(CwChessResult::DrawDeclared),
         }
     }
 }
@@ -67,11 +65,12 @@ pub struct CwChessGame {
     pub moves: Vec<CwChessMove>,
     pub player1: Addr,
     pub player2: Addr,
-    pub status: CwChessStatus,
+    pub result: Option<CwChessResult>,
+    pub start_height: u64,
 }
 
 impl CwChessGame {
-    pub fn do_move(mut game: Game, chess_move: &CwChessMove) -> Result<Game, ContractError> {
+    fn do_move(mut game: Game, chess_move: &CwChessMove) -> Result<Game, ContractError> {
         let ok = match &chess_move.action {
             CwChessAction::MakeMove(movestr) => {
                 match ChessMove::from_san(&game.current_position(), &movestr) {
@@ -122,7 +121,10 @@ impl CwChessGame {
         &mut self,
         player: &Addr,
         chess_move: CwChessMove,
-    ) -> Result<&CwChessStatus, ContractError> {
+    ) -> Result<Option<CwChessResult>, ContractError> {
+        if self.result.is_some() {
+            return Err(ContractError::GameAlreadyFinished {});
+        }
         let mut game = self.load_game()?;
         let player_to_move = match game.side_to_move() {
             Color::White => &self.player1,
@@ -134,11 +136,9 @@ impl CwChessGame {
             game = CwChessGame::do_move(game, &chess_move)?;
             // save move
             self.moves.push(chess_move);
-            // check if game ended
-            if let Some(result) = game.result() {
-                self.status = CwChessStatus::from_result(result);
-            }
-            Ok(&self.status)
+            // update result in case game ended
+            self.result = CwChessResult::from_result(game.result());
+            Ok(self.result.clone())
         }
     }
 }
