@@ -1,4 +1,6 @@
 [alias]
-wasm = "build --release --target wasm32-unknown-unknown"
-unit-test = "test --lib"
+optimize = "run-script optimize"
 schema = "run --example schema"
+unit-test = "test --lib"
+# RUSTFLAGS='-C link-arg=-s' cargo wasm
+wasm = "build --release --target wasm32-unknown-unknown"
