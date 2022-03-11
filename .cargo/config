@@ -4,3 +4,6 @@ schema = "run --example schema"
 unit-test = "test --lib"
 # RUSTFLAGS='-C link-arg=-s' cargo wasm
 wasm = "build --release --target wasm32-unknown-unknown"
+
+[build]
+rustflags = ["-C", "link-arg=-s",]
