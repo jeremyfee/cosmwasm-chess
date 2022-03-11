@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CwChessAction",
+  "oneOf": [
+    {
+      "type": "string",
+      "enum": [
+        "accept_draw",
+        "declare_draw",
+        "offer_draw",
+        "resign"
+      ]
+    },
+    {
+      "type": "object",
+      "required": [
+        "make_move"
+      ],
+      "properties": {
+        "make_move": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

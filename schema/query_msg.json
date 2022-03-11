@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "get_challenge"
+      ],
+      "properties": {
+        "get_challenge": {
+          "type": "object",
+          "required": [
+            "challenge_id"
+          ],
+          "properties": {
+            "challenge_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_game"
+      ],
+      "properties": {
+        "get_game": {
+          "type": "object",
+          "required": [
+            "game_id"
+          ],
+          "properties": {
+            "game_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_player_info"
+      ],
+      "properties": {
+        "get_player_info": {
+          "type": "object",
+          "required": [
+            "player"
+          ],
+          "properties": {
+            "player": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

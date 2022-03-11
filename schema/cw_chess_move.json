@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CwChessMove",
+  "type": "object",
+  "required": [
+    "action",
+    "block"
+  ],
+  "properties": {
+    "action": {
+      "$ref": "#/definitions/CwChessAction"
+    },
+    "block": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    }
+  },
+  "definitions": {
+    "CwChessAction": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "accept_draw",
+            "declare_draw",
+            "offer_draw",
+            "resign"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "make_move"
+          ],
+          "properties": {
+            "make_move": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

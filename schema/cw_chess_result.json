@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CwChessResult",
+  "type": "string",
+  "enum": [
+    "white_checkmates",
+    "white_resigns",
+    "black_checkmates",
+    "black_resigns",
+    "stalemate",
+    "draw_accepted",
+    "draw_declared"
+  ]
+}

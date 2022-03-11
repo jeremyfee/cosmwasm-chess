@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "create_challenge"
+      ],
+      "properties": {
+        "create_challenge": {
+          "type": "object",
+          "properties": {
+            "block_time_limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "opponent": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "play_as": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/CwChessColor"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "accept_challenge"
+      ],
+      "properties": {
+        "accept_challenge": {
+          "type": "object",
+          "required": [
+            "challenge_id"
+          ],
+          "properties": {
+            "challenge_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "cancel_challenge"
+      ],
+      "properties": {
+        "cancel_challenge": {
+          "type": "object",
+          "required": [
+            "challenge_id"
+          ],
+          "properties": {
+            "challenge_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "move"
+      ],
+      "properties": {
+        "move": {
+          "type": "object",
+          "required": [
+            "action",
+            "game_id"
+          ],
+          "properties": {
+            "action": {
+              "$ref": "#/definitions/CwChessAction"
+            },
+            "game_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "CwChessAction": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "accept_draw",
+            "declare_draw",
+            "offer_draw",
+            "resign"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "make_move"
+          ],
+          "properties": {
+            "make_move": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CwChessColor": {
+      "type": "string",
+      "enum": [
+        "white",
+        "black"
+      ]
+    }
+  }
+}
