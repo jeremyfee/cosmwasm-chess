@@ -1,0 +1,72 @@
+on: [push]
+
+name: CI
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Unit Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: unit-test
+          args: --locked
+        env:
+          RUST_BACKTRACE: 1
+      - name: Fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings
+      - name: Schema
+        uses: actions-rs/cargo@v1
+        with:
+          command: schema
+          args: --locked
+      - name: Schema Changes
+        # fails if any changes
+        run: git diff --exit-code
+
+  build:
+    steps:
+      - name: Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          target: wasm32-unknown-unknown
+          toolchain: stable
+      - name: Wasm
+        uses: actions-rs/cargo@v1
+        with:
+          command: wasm
+          args: --locked
+        env:
+          RUSTFLAGS: "-C link-arg=-s"
+
+  optimizer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Optimize
+        uses: addnab/docker-run-action@v3
+        with:
+          registry: public.ecr.aws
+          image: cosmwasm/rust-optimizer:0.12.5
+          options: |
+            -v "$(pwd)":/code \
+            --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+            --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry
+      - name: Save Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: |
+            artifacts
