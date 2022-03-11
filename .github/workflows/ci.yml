@@ -39,6 +39,8 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -49,8 +51,8 @@ jobs:
       - name: Wasm
         uses: actions-rs/cargo@v1
         with:
-          command: wasm
-          args: --locked
+          command: build
+          args: --release --target wasm32-unknown-unknown --locked
         env:
           RUSTFLAGS: "-C link-arg=-s"
 
@@ -58,15 +60,10 @@ jobs:
     name: Optimize
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Optimize
-        uses: addnab/docker-run-action@v3
-        with:
-          registry: public.ecr.aws
-          image: cosmwasm/rust-optimizer:0.12.5
-          options: |
-            -v "$(pwd)":/code \
-            --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
-            --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry
+        uses: docker://cosmwasm/rust-optimizer:0.12.5
       - name: Save Artifacts
         uses: actions/upload-artifact@v3
         with:
