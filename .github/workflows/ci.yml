@@ -36,6 +36,8 @@ jobs:
         run: git diff --exit-code
 
   build:
+    name: Build
+    runs-on: ubuntu-latest
     steps:
       - name: Rust
         uses: actions-rs/toolchain@v1
@@ -52,7 +54,8 @@ jobs:
         env:
           RUSTFLAGS: "-C link-arg=-s"
 
-  optimizer:
+  optimize:
+    name: Optimize
     runs-on: ubuntu-latest
     steps:
       - name: Optimize
