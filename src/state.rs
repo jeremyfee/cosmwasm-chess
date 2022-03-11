@@ -111,7 +111,7 @@ fn remove_player_challenge(
         }
     })?;
     // clean up empty players
-    if player.challenges.len() == 0 && player.games.len() == 0 {
+    if player.challenges.is_empty() && player.games.is_empty() {
         PLAYERS.remove(store, addr);
     }
     Ok(player)

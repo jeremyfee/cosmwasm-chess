@@ -62,11 +62,11 @@ fn try_accept_challenge(
     deps: DepsMut,
     challenge_id: u64,
     player: Addr,
-    height: u64,
+    start_height: u64,
 ) -> Result<Response, ContractError> {
     let challenge = match CHALLENGES.load(deps.storage, challenge_id) {
         Ok(challenge) => {
-            if challenge.opponent.is_some() && &challenge.opponent != &Some(player.clone()) {
+            if challenge.opponent.is_some() && challenge.opponent != Some(player.clone()) {
                 return Err(ContractError::NotYourChallenge {});
             }
             challenge
@@ -81,16 +81,16 @@ fn try_accept_challenge(
         challenge.created_by.clone(),
         player,
         challenge.play_as.clone(),
-        height,
+        start_height,
     );
     // create game
     let game = CwChessGame {
         block_time_limit: challenge.block_time_limit,
-        game_id: game_id,
-        player1: player1,
-        player2: player2,
+        game_id,
+        player1,
+        player2,
         moves: vec![],
-        start_height: height,
+        start_height,
         result: None,
     };
     // update storage
@@ -125,20 +125,20 @@ fn try_create_challenge(
     opponent: Option<String>,
     play_as: Option<CwChessColor>,
     block_time_limit: Option<u64>,
-    height: u64,
+    created_block: u64,
 ) -> Result<Response, ContractError> {
     let challenge_id = next_challenge_id(deps.storage)?;
-    let opponent_addr = match opponent {
+    let opponent = match opponent {
         Some(addr) => Some(deps.api.addr_validate(&addr)?),
         None => None,
     };
     let challenge = Challenge {
-        block_time_limit: block_time_limit,
-        challenge_id: challenge_id,
-        created_block: height,
-        created_by: created_by,
-        opponent: opponent_addr,
-        play_as: play_as,
+        block_time_limit,
+        challenge_id,
+        created_block,
+        created_by,
+        opponent,
+        play_as,
     };
     add_challenge(deps.storage, challenge)?;
     Ok(Response::new().add_attribute("challenge_id", challenge_id.to_string()))

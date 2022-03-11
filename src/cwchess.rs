@@ -73,7 +73,7 @@ impl CwChessGame {
     fn do_move(mut game: Game, chess_move: &CwChessMove) -> Result<Game, ContractError> {
         let ok = match &chess_move.action {
             CwChessAction::MakeMove(movestr) => {
-                match ChessMove::from_san(&game.current_position(), &movestr) {
+                match ChessMove::from_san(&game.current_position(), movestr) {
                     Ok(chess_move) => game.make_move(chess_move),
                     _ => false,
                 }
