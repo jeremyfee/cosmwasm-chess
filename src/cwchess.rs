@@ -44,90 +44,90 @@ pub struct CwChessMove {
 
 // internal struct to simulate (partial) chess::Game interface using chess_engine::Board
 pub struct Game {
-  pub board: Board,
-  pub draw_offered: Option<Color>,
-  pub result: Option<CwChessResult>,
+    pub board: Board,
+    pub draw_offered: Option<Color>,
+    pub result: Option<CwChessResult>,
 }
 
 impl Game {
-  pub fn make_move(&mut self, chess_move: &CwChessMove) -> Result<Option<CwChessResult>, ContractError> {
-    if self.result.is_some() {
-      return Err(ContractError::GameAlreadyFinished{});
-    }
-    match &chess_move.action {
-        CwChessAction::MakeMove(movestr) => self.do_move(movestr.to_string()),
-        CwChessAction::OfferDraw(movestr) => {
-          let offered_draw = Some(self.side_to_move());
-          self.do_move(movestr.to_string())?;
-          self.draw_offered = offered_draw;
-          Ok(None)
+    pub fn make_move(
+        &mut self,
+        chess_move: &CwChessMove,
+    ) -> Result<Option<CwChessResult>, ContractError> {
+        if self.result.is_some() {
+            return Err(ContractError::GameAlreadyFinished {});
         }
-        CwChessAction::AcceptDraw => self.accept_draw(),
-        CwChessAction::DeclareDraw => self.declare_draw(),
-        CwChessAction::Resign => self.resign(),
-    }
-  }
-
-  pub fn new() -> Self {
-    Game {
-      board: Board::default(),
-      draw_offered: None,
-      result: None
-    }
-  }
-
-
-  pub fn side_to_move(&self) -> Color {
-    self.board.get_turn_color()
-  }
-
-  fn accept_draw(&mut self) -> Result<Option<CwChessResult>, ContractError> {
-    if let Some(color) = self.draw_offered {
-      if color != self.side_to_move() {
-        self.result = Some(CwChessResult::DrawAccepted);
-        return Ok(self.result.clone());
-      }
-    }
-    Err(ContractError::InvalidMove{})
-  }
-
-  fn declare_draw(&mut self) -> Result<Option<CwChessResult>, ContractError> {
-    // TODO implement draw checks
-    Err(ContractError::InvalidMove{})
-  }
-
-  fn do_move(&mut self, movestr: String) -> Result<Option<CwChessResult>, ContractError> {
-    match Move::parse(movestr) {
-      Ok(chess_move) => {
-        self.result = match self.board.play_move(chess_move) {
-          GameResult::Continuing(board) => {
-            self.board = board;
-            None
-          }
-          GameResult::IllegalMove(_) => {
-            return Err(ContractError::InvalidMove{});
-          }
-          GameResult::Stalemate => Some(CwChessResult::Stalemate),
-          GameResult::Victory(color) => {
-            match color {
-              Color::Black => Some(CwChessResult::BlackCheckmates),
-              Color::White => Some(CwChessResult::WhiteCheckmates)
+        match &chess_move.action {
+            CwChessAction::MakeMove(movestr) => self.do_move(movestr.to_string()),
+            CwChessAction::OfferDraw(movestr) => {
+                let offered_draw = Some(self.side_to_move());
+                self.do_move(movestr.to_string())?;
+                self.draw_offered = offered_draw;
+                Ok(None)
             }
-          }
+            CwChessAction::AcceptDraw => self.accept_draw(),
+            CwChessAction::DeclareDraw => self.declare_draw(),
+            CwChessAction::Resign => self.resign(),
+        }
+    }
+
+    pub fn new() -> Self {
+        Game {
+            board: Board::default(),
+            draw_offered: None,
+            result: None,
+        }
+    }
+
+    pub fn side_to_move(&self) -> Color {
+        self.board.get_turn_color()
+    }
+
+    fn accept_draw(&mut self) -> Result<Option<CwChessResult>, ContractError> {
+        if let Some(color) = self.draw_offered {
+            if color != self.side_to_move() {
+                self.result = Some(CwChessResult::DrawAccepted);
+                return Ok(self.result.clone());
+            }
+        }
+        Err(ContractError::InvalidMove {})
+    }
+
+    fn declare_draw(&mut self) -> Result<Option<CwChessResult>, ContractError> {
+        // TODO implement draw checks
+        Err(ContractError::InvalidMove {})
+    }
+
+    fn do_move(&mut self, movestr: String) -> Result<Option<CwChessResult>, ContractError> {
+        match Move::parse(movestr) {
+            Ok(chess_move) => {
+                self.result = match self.board.play_move(chess_move) {
+                    GameResult::Continuing(board) => {
+                        self.board = board;
+                        None
+                    }
+                    GameResult::IllegalMove(_) => {
+                        return Err(ContractError::InvalidMove {});
+                    }
+                    GameResult::Stalemate => Some(CwChessResult::Stalemate),
+                    GameResult::Victory(color) => match color {
+                        Color::Black => Some(CwChessResult::BlackCheckmates),
+                        Color::White => Some(CwChessResult::WhiteCheckmates),
+                    },
+                };
+                Ok(self.result.clone())
+            }
+            _ => Err(ContractError::InvalidMove {}),
+        }
+    }
+
+    fn resign(&mut self) -> Result<Option<CwChessResult>, ContractError> {
+        self.result = match self.side_to_move() {
+            Color::Black => Some(CwChessResult::BlackResigns),
+            Color::White => Some(CwChessResult::BlackResigns),
         };
         Ok(self.result.clone())
-      }
-      _ => Err(ContractError::InvalidMove{})
     }
-  }
-
-  fn resign(&mut self) -> Result<Option<CwChessResult>, ContractError> {
-    self.result = match self.side_to_move() {
-      Color::Black => Some(CwChessResult::BlackResigns),
-      Color::White => Some(CwChessResult::BlackResigns),
-    };
-    Ok(self.result.clone())
-  }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
