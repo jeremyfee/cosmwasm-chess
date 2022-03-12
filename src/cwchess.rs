@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use chess::{ChessMove, Color, Game, GameResult};
+use chess_engine::{Board, Color, GameResult, Move};
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,7 @@ pub enum CwChessAction {
     AcceptDraw,
     DeclareDraw,
     MakeMove(String),
-    OfferDraw,
+    OfferDraw(String),
     Resign,
 }
 
@@ -35,26 +35,99 @@ pub enum CwChessResult {
     // custom results
 }
 
-impl CwChessResult {
-    fn from_result(result: Option<GameResult>) -> Option<CwChessResult> {
-        match result {
-            None => None,
-            Some(GameResult::WhiteCheckmates) => Some(CwChessResult::WhiteCheckmates),
-            Some(GameResult::WhiteResigns) => Some(CwChessResult::WhiteResigns),
-            Some(GameResult::BlackCheckmates) => Some(CwChessResult::BlackCheckmates),
-            Some(GameResult::BlackResigns) => Some(CwChessResult::BlackResigns),
-            Some(GameResult::Stalemate) => Some(CwChessResult::Stalemate),
-            Some(GameResult::DrawAccepted) => Some(CwChessResult::DrawAccepted),
-            Some(GameResult::DrawDeclared) => Some(CwChessResult::DrawDeclared),
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CwChessMove {
     pub action: CwChessAction,
     pub block: u64,
+}
+
+// internal struct to simulate (partial) chess::Game interface using chess_engine::Board
+pub struct Game {
+  pub board: Board,
+  pub draw_offered: Option<Color>,
+  pub result: Option<CwChessResult>,
+}
+
+impl Game {
+  pub fn make_move(&mut self, chess_move: &CwChessMove) -> Result<Option<CwChessResult>, ContractError> {
+    if self.result.is_some() {
+      return Err(ContractError::GameAlreadyFinished{});
+    }
+    match &chess_move.action {
+        CwChessAction::MakeMove(movestr) => self.do_move(movestr.to_string()),
+        CwChessAction::OfferDraw(movestr) => {
+          let offered_draw = Some(self.side_to_move());
+          self.do_move(movestr.to_string())?;
+          self.draw_offered = offered_draw;
+          Ok(None)
+        }
+        CwChessAction::AcceptDraw => self.accept_draw(),
+        CwChessAction::DeclareDraw => self.declare_draw(),
+        CwChessAction::Resign => self.resign(),
+    }
+  }
+
+  pub fn new() -> Self {
+    Game {
+      board: Board::default(),
+      draw_offered: None,
+      result: None
+    }
+  }
+
+
+  pub fn side_to_move(&self) -> Color {
+    self.board.get_turn_color()
+  }
+
+  fn accept_draw(&mut self) -> Result<Option<CwChessResult>, ContractError> {
+    if let Some(color) = self.draw_offered {
+      if color != self.side_to_move() {
+        self.result = Some(CwChessResult::DrawAccepted);
+        return Ok(self.result.clone());
+      }
+    }
+    Err(ContractError::InvalidMove{})
+  }
+
+  fn declare_draw(&mut self) -> Result<Option<CwChessResult>, ContractError> {
+    // TODO implement draw checks
+    Err(ContractError::InvalidMove{})
+  }
+
+  fn do_move(&mut self, movestr: String) -> Result<Option<CwChessResult>, ContractError> {
+    match Move::parse(movestr) {
+      Ok(chess_move) => {
+        self.result = match self.board.play_move(chess_move) {
+          GameResult::Continuing(board) => {
+            self.board = board;
+            None
+          }
+          GameResult::IllegalMove(_) => {
+            return Err(ContractError::InvalidMove{});
+          }
+          GameResult::Stalemate => Some(CwChessResult::Stalemate),
+          GameResult::Victory(color) => {
+            match color {
+              Color::Black => Some(CwChessResult::BlackCheckmates),
+              Color::White => Some(CwChessResult::WhiteCheckmates)
+            }
+          }
+        };
+        Ok(self.result.clone())
+      }
+      _ => Err(ContractError::InvalidMove{})
+    }
+  }
+
+  fn resign(&mut self) -> Result<Option<CwChessResult>, ContractError> {
+    self.result = match self.side_to_move() {
+      Color::Black => Some(CwChessResult::BlackResigns),
+      Color::White => Some(CwChessResult::BlackResigns),
+    };
+    Ok(self.result.clone())
+  }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -70,26 +143,6 @@ pub struct CwChessGame {
 }
 
 impl CwChessGame {
-    fn do_move(mut game: Game, chess_move: &CwChessMove) -> Result<Game, ContractError> {
-        let ok = match &chess_move.action {
-            CwChessAction::MakeMove(movestr) => {
-                match ChessMove::from_san(&game.current_position(), movestr) {
-                    Ok(chess_move) => game.make_move(chess_move),
-                    _ => false,
-                }
-            }
-            CwChessAction::OfferDraw => game.offer_draw(game.current_position().side_to_move()),
-            CwChessAction::AcceptDraw => game.accept_draw(),
-            CwChessAction::DeclareDraw => game.declare_draw(),
-            CwChessAction::Resign => game.resign(game.current_position().side_to_move()),
-        };
-        if ok {
-            Ok(game)
-        } else {
-            Err(ContractError::InvalidMove {})
-        }
-    }
-
     pub fn get_player_order(
         player1: Addr,
         player2: Addr,
@@ -112,7 +165,7 @@ impl CwChessGame {
     pub fn load_game(&self) -> Result<Game, ContractError> {
         let mut game: Game = Game::new();
         for chess_move in self.moves.clone() {
-            game = CwChessGame::do_move(game, &chess_move)?;
+            game.make_move(&chess_move)?;
         }
         Ok(game)
     }
@@ -133,11 +186,11 @@ impl CwChessGame {
         if player_to_move != player {
             Err(ContractError::NotYourTurn {})
         } else {
-            game = CwChessGame::do_move(game, &chess_move)?;
+            game.make_move(&chess_move)?;
             // save move
             self.moves.push(chess_move);
             // update result in case game ended
-            self.result = CwChessResult::from_result(game.result());
+            self.result = game.result;
             Ok(self.result.clone())
         }
     }

@@ -10,7 +10,7 @@ exclude = [
 
 
 [dependencies]
-chess = "3.2.0"
+chess-engine = "0.1.2"
 cosmwasm-std = "1.0.0-beta6"
 cosmwasm-storage = "1.0.0-beta6"
 cw-storage-plus = "0.13.0"
