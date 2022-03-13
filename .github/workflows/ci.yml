@@ -41,28 +41,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          target: wasm32-unknown-unknown
-          toolchain: stable
-      - name: Wasm
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target wasm32-unknown-unknown --locked
-        env:
-          RUSTFLAGS: "-C link-arg=-s"
-
-  optimize:
-    name: Optimize
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Optimize
+      - name: Build with Optimizer
         uses: docker://cosmwasm/rust-optimizer:0.12.5
       - name: Save Artifacts
         uses: actions/upload-artifact@v3

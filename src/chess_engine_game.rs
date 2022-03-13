@@ -228,16 +228,16 @@ mod tests {
 
         // try valid moves from starting position
         assert_eq!(
-            parse_san_move(&board, &String::from("d4")).expect("d4 is valid first move"),
+            parse_san_move(&board, "d4").expect("d4"),
             Move::Piece(D2, D4)
         );
         assert_eq!(
-            parse_san_move(&board, &String::from("Nc3")).expect("Nc3 is valid first move"),
+            parse_san_move(&board, "Nc3").expect("Nc3"),
             Move::Piece(B1, C3)
         );
         // not valid first move for white
         assert_eq!(
-            parse_san_move(&board, &String::from("d5")).expect_err("d5 is invalid"),
+            parse_san_move(&board, "d5").expect_err("d5"),
             GameError::InvalidMove {}
         );
 
@@ -248,12 +248,12 @@ mod tests {
         };
         // valid first move for black
         assert_eq!(
-            parse_san_move(&board, &String::from("d5")).unwrap(),
+            parse_san_move(&board, "d5").expect("d5"),
             Move::Piece(D7, D5)
         );
         // white moves not valid for black
         assert_eq!(
-            parse_san_move(&board, &String::from("c4")).expect_err("d5 is invalid"),
+            parse_san_move(&board, "c4").expect_err("c4"),
             GameError::InvalidMove {}
         );
     }
