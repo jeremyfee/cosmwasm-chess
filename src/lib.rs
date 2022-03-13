@@ -1,3 +1,4 @@
+pub mod chess_engine_game;
 pub mod contract;
 pub mod cwchess;
 mod error;

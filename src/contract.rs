@@ -91,7 +91,7 @@ fn try_accept_challenge(
         player2,
         moves: vec![],
         start_height,
-        result: None,
+        status: None,
     };
     // update storage
     add_game(deps.storage, game)?;
@@ -389,7 +389,7 @@ mod tests {
             env,
             mock_info("white", &[]),
             ExecuteMsg::Move {
-                action: CwChessAction::MakeMove("d2d4".to_string()),
+                action: CwChessAction::MakeMove("d4".to_string()),
                 game_id: 1,
             },
         )
@@ -401,7 +401,7 @@ mod tests {
             mock_env(),
             mock_info("white", &[]),
             ExecuteMsg::Move {
-                action: CwChessAction::MakeMove("c2c4".to_string()),
+                action: CwChessAction::MakeMove("c4".to_string()),
                 game_id: 1,
             },
         );
@@ -418,7 +418,7 @@ mod tests {
             env,
             mock_info("black", &[]),
             ExecuteMsg::Move {
-                action: CwChessAction::MakeMove("d7d5".to_string()),
+                action: CwChessAction::MakeMove("d5".to_string()),
                 game_id: 1,
             },
         )
@@ -433,11 +433,11 @@ mod tests {
             game.moves,
             vec![
                 CwChessMove {
-                    action: CwChessAction::MakeMove("d2d4".to_string()),
+                    action: CwChessAction::MakeMove("d4".to_string()),
                     block: 123
                 },
                 CwChessMove {
-                    action: CwChessAction::MakeMove("d7d5".to_string()),
+                    action: CwChessAction::MakeMove("d5".to_string()),
                     block: 456
                 },
             ]
@@ -449,7 +449,7 @@ mod tests {
             mock_env(),
             mock_info("white", &[]),
             ExecuteMsg::Move {
-                action: CwChessAction::MakeMove("d4d5".to_string()),
+                action: CwChessAction::MakeMove("d5".to_string()),
                 game_id: 1,
             },
         );
@@ -464,7 +464,7 @@ mod tests {
             mock_env(),
             mock_info("white", &[]),
             ExecuteMsg::Move {
-                action: CwChessAction::MakeMove("c2c4".to_string()),
+                action: CwChessAction::MakeMove("c4".to_string()),
                 game_id: 1,
             },
         )

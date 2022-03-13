@@ -3,7 +3,7 @@ use std::env::current_dir;
 use std::fs::create_dir_all;
 
 use cosmwasm_chess::cwchess::{
-    CwChessAction, CwChessColor, CwChessGame, CwChessMove, CwChessResult,
+    CwChessAction, CwChessColor, CwChessGame, CwChessGameOver, CwChessMove,
 };
 use cosmwasm_chess::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -17,7 +17,7 @@ fn main() {
     export_schema(&schema_for!(CwChessColor), &out_dir);
     export_schema(&schema_for!(CwChessGame), &out_dir);
     export_schema(&schema_for!(CwChessMove), &out_dir);
-    export_schema(&schema_for!(CwChessResult), &out_dir);
+    export_schema(&schema_for!(CwChessGameOver), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
