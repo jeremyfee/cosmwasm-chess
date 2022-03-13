@@ -35,20 +35,20 @@
     "player2": {
       "$ref": "#/definitions/Addr"
     },
-    "result": {
+    "start_height": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "status": {
       "anyOf": [
         {
-          "$ref": "#/definitions/CwChessResult"
+          "$ref": "#/definitions/CwChessGameOver"
         },
         {
           "type": "null"
         }
       ]
-    },
-    "start_height": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
     }
   },
   "definitions": {
@@ -62,8 +62,6 @@
           "type": "string",
           "enum": [
             "accept_draw",
-            "declare_draw",
-            "offer_draw",
             "resign"
           ]
         },
@@ -78,7 +76,31 @@
             }
           },
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "offer_draw"
+          ],
+          "properties": {
+            "offer_draw": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         }
+      ]
+    },
+    "CwChessGameOver": {
+      "type": "string",
+      "enum": [
+        "black_checkmates",
+        "black_resigns",
+        "draw_accepted",
+        "draw_declared",
+        "stalemate",
+        "white_checkmates",
+        "white_resigns"
       ]
     },
     "CwChessMove": {
@@ -97,18 +119,6 @@
           "minimum": 0.0
         }
       }
-    },
-    "CwChessResult": {
-      "type": "string",
-      "enum": [
-        "white_checkmates",
-        "white_resigns",
-        "black_checkmates",
-        "black_resigns",
-        "stalemate",
-        "draw_accepted",
-        "draw_declared"
-      ]
     }
   }
 }

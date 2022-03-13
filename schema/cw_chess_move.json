@@ -23,8 +23,6 @@
           "type": "string",
           "enum": [
             "accept_draw",
-            "declare_draw",
-            "offer_draw",
             "resign"
           ]
         },
@@ -35,6 +33,18 @@
           ],
           "properties": {
             "make_move": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "offer_draw"
+          ],
+          "properties": {
+            "offer_draw": {
               "type": "string"
             }
           },
