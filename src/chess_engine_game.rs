@@ -32,6 +32,7 @@ pub enum GameOver {
 }
 
 // wrapper around chess_engine::Board
+#[derive(Default)]
 pub struct Game {
     pub board: Board,
     pub draw_offered: Option<Color>,
@@ -49,17 +50,9 @@ impl Game {
         }
         match action {
             GameAction::AcceptDraw => self.accept_draw(),
-            GameAction::MakeMove(move_str) => self.move_piece(&move_str, false),
-            GameAction::OfferDraw(move_str) => self.move_piece(&move_str, true),
+            GameAction::MakeMove(move_str) => self.move_piece(move_str, false),
+            GameAction::OfferDraw(move_str) => self.move_piece(move_str, true),
             GameAction::Resign => self.resign(),
-        }
-    }
-
-    pub fn new() -> Self {
-        Game {
-            board: Board::default(),
-            draw_offered: None,
-            status: None,
         }
     }
 
@@ -75,7 +68,7 @@ impl Game {
 
     fn move_piece(
         &mut self,
-        movestr: &String,
+        movestr: &str,
         draw_offered: bool,
     ) -> Result<&Option<GameOver>, GameError> {
         let chess_move = parse_san_move(&self.board, movestr)?;
@@ -110,7 +103,7 @@ impl Game {
     }
 }
 
-fn parse_san_move(board: &Board, move_str: &String) -> Result<Move, GameError> {
+fn parse_san_move(board: &Board, move_str: &str) -> Result<Move, GameError> {
     if move_str == "0-0" {
         return Ok(Move::KingSideCastle {});
     } else if move_str == "0-0-0" {
@@ -267,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_game_moves() {
-        let mut game = Game::new();
+        let mut game = Game::default();
         let game_moves = vec!["d4", "d5", "c4", "dxc4", "e3", "Nf6", "Bxc4"];
         for game_move in game_moves {
             game.make_move(&GameAction::from(game_move))
@@ -278,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_fools_mate() {
-        let mut game = Game::new();
+        let mut game = Game::default();
         let game_moves = vec!["f3", "e5", "g4", "Qh4"];
         for game_move in game_moves {
             game.make_move(&GameAction::from(game_move))

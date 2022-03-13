@@ -99,9 +99,9 @@ impl CwChessGame {
     }
 
     pub fn load_game(&self) -> Result<Game, ContractError> {
-        let mut game: Game = Game::new();
+        let mut game: Game = Game::default();
         for chess_move in &self.moves {
-            if let Err(_) = game.make_move(&GameAction::from(chess_move)) {
+            if game.make_move(&GameAction::from(chess_move)).is_err() {
                 return Err(ContractError::InvalidMove {});
             }
         }
@@ -128,10 +128,7 @@ impl CwChessGame {
             Err(_) => Err(ContractError::InvalidMove {}),
             Ok(status) => {
                 self.moves.push(chess_move);
-                self.status = match status {
-                    Some(game_over) => Some(CwChessGameOver::from(game_over)),
-                    None => None,
-                };
+                self.status = status.as_ref().map(CwChessGameOver::from);
                 Ok(&self.status)
             }
         }
