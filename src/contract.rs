@@ -1,6 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+};
 use cw2::set_contract_version;
 
 use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessMove};
@@ -178,6 +180,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetChallenge { challenge_id } => {
             to_binary(&query_get_challenge(deps, challenge_id)?)
         }
+        QueryMsg::GetOpenChallenges {} => to_binary(&query_get_open_challenges(deps)?),
         QueryMsg::GetPlayerInfo { player } => to_binary(&query_get_player_info(
             deps,
             deps.api.addr_validate(&player)?,
@@ -193,6 +196,18 @@ fn query_get_challenge(deps: Deps, challenge_id: u64) -> StdResult<Challenge> {
 fn query_get_game(deps: Deps, game_id: u64) -> StdResult<CwChessGame> {
     let game = GAMES.load(deps.storage, game_id)?;
     Ok(game)
+}
+
+fn query_get_open_challenges(deps: Deps) -> StdResult<Vec<Challenge>> {
+    let challenges: Vec<Challenge> = CHALLENGES
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|challenge| -> Challenge {
+            let (_, c) = challenge.unwrap();
+            c
+        })
+        .filter(|challenge| -> bool { challenge.opponent.is_none() })
+        .collect();
+    Ok(challenges)
 }
 
 fn query_get_player_info(deps: Deps, player: Addr) -> StdResult<Player> {

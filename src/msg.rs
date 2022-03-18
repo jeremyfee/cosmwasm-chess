@@ -36,5 +36,6 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     GetChallenge { challenge_id: u64 },
     GetGame { game_id: u64 },
+    GetOpenChallenges {},
     GetPlayerInfo { player: String },
 }
