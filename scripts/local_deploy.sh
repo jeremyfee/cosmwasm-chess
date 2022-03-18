@@ -87,8 +87,8 @@ echo "addr=${CONTRACT_ADDR}"
 # output commands to use contract
 echo
 echo "To execute contract, replace '{MESSAGE}' in this command:"
-echo ${EXEC} junod tx wasm execute "${CONTRACT_ADDR}" '{MESSAGE}' "${TX_ARGS[@]}"
+echo ${EXEC} junod tx wasm execute "${CONTRACT_ADDR}" "'{MESSAGE}'" "${TX_ARGS[@]}"
 echo
 echo "To query contract, replace '{MESSAGE}' in this command:"
-echo ${EXEC} junod query wasm contract-state smart "${CONTRACT_ADDR}" '{MESSAGE}' "${QUERY_ARGS[@]}"
+echo ${EXEC} junod query wasm contract-state smart "${CONTRACT_ADDR}" "'{MESSAGE}'" "${QUERY_ARGS[@]}"
 echo
