@@ -49,6 +49,18 @@
     {
       "type": "object",
       "required": [
+        "get_open_challenges"
+      ],
+      "properties": {
+        "get_open_challenges": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_player_info"
       ],
       "properties": {
