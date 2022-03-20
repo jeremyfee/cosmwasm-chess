@@ -7,10 +7,9 @@ use cw2::set_contract_version;
 
 use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessMove};
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, GameSummary, InstantiateMsg, QueryMsg};
 use crate::state::{
-    add_challenge, add_game, next_challenge_id, next_game_id, remove_challenge, Challenge, Player,
-    State, CHALLENGES, GAMES, PLAYERS, STATE,
+    get_challenges_map, get_games_map, next_challenge_id, next_game_id, Challenge, State, STATE,
 };
 
 // version info for migration info
@@ -66,7 +65,8 @@ fn try_accept_challenge(
     player: Addr,
     start_height: u64,
 ) -> Result<Response, ContractError> {
-    let challenge = match CHALLENGES.load(deps.storage, challenge_id) {
+    let challenges_map = get_challenges_map();
+    let challenge = match challenges_map.load(deps.storage, challenge_id) {
         Ok(challenge) => {
             if challenge.opponent.is_some() && challenge.opponent != Some(player.clone()) {
                 return Err(ContractError::NotYourChallenge {});
@@ -94,10 +94,12 @@ fn try_accept_challenge(
         moves: vec![],
         start_height,
         status: None,
+        turn_color: Some(CwChessColor::White),
     };
     // update storage
-    add_game(deps.storage, game)?;
-    remove_challenge(deps.storage, challenge)?;
+    let games_map = get_games_map();
+    games_map.save(deps.storage, game_id, &game)?;
+    challenges_map.remove(deps.storage, challenge_id)?;
     Ok(Response::new().add_attribute("game_id", game_id.to_string()))
 }
 
@@ -106,7 +108,8 @@ fn try_cancel_challenge(
     challenge_id: u64,
     player: Addr,
 ) -> Result<Response, ContractError> {
-    let challenge = match CHALLENGES.load(deps.storage, challenge_id) {
+    let challenges_map = get_challenges_map();
+    let challenge = match challenges_map.load(deps.storage, challenge_id) {
         Ok(challenge) => {
             if challenge.created_by != player {
                 return Err(ContractError::NotYourChallenge {});
@@ -117,7 +120,7 @@ fn try_cancel_challenge(
             return Err(ContractError::ChallengeNotFound {});
         }
     };
-    CHALLENGES.remove(deps.storage, challenge.challenge_id);
+    challenges_map.remove(deps.storage, challenge.challenge_id)?;
     Ok(Response::new())
 }
 
@@ -142,7 +145,8 @@ fn try_create_challenge(
         opponent,
         play_as,
     };
-    add_challenge(deps.storage, challenge)?;
+    let challenges_map = get_challenges_map();
+    challenges_map.save(deps.storage, challenge_id, &challenge)?;
     Ok(Response::new().add_attribute("challenge_id", challenge_id.to_string()))
 }
 
@@ -153,7 +157,8 @@ fn try_move(
     action: CwChessAction,
     height: u64,
 ) -> Result<Response, ContractError> {
-    let game = GAMES.update(deps.storage, game_id, |game| -> Result<_, ContractError> {
+    let games_map = get_games_map();
+    let game = games_map.update(deps.storage, game_id, |game| -> Result<_, ContractError> {
         match game {
             None => Err(ContractError::GameNotFound {}),
             Some(mut game) => {
@@ -180,39 +185,121 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetChallenge { challenge_id } => {
             to_binary(&query_get_challenge(deps, challenge_id)?)
         }
-        QueryMsg::GetOpenChallenges {} => to_binary(&query_get_open_challenges(deps)?),
-        QueryMsg::GetPlayerInfo { player } => to_binary(&query_get_player_info(
-            deps,
-            deps.api.addr_validate(&player)?,
-        )?),
+        QueryMsg::GetChallenges { player } => to_binary(&query_get_challenges(deps, player)?),
+        QueryMsg::GetGames { game_over, player } => {
+            to_binary(&query_get_games(deps, game_over, player)?)
+        }
     }
 }
 
 fn query_get_challenge(deps: Deps, challenge_id: u64) -> StdResult<Challenge> {
-    let challenge = CHALLENGES.load(deps.storage, challenge_id)?;
+    let challenges_map = get_challenges_map();
+    let challenge = challenges_map.load(deps.storage, challenge_id)?;
     Ok(challenge)
 }
 
 fn query_get_game(deps: Deps, game_id: u64) -> StdResult<CwChessGame> {
-    let game = GAMES.load(deps.storage, game_id)?;
+    let games_map = get_games_map();
+    let game = games_map.load(deps.storage, game_id)?;
     Ok(game)
 }
 
-fn query_get_open_challenges(deps: Deps) -> StdResult<Vec<Challenge>> {
-    let challenges: Vec<Challenge> = CHALLENGES
-        .range(deps.storage, None, None, Order::Ascending)
-        .map(|challenge| -> Challenge {
-            let (_, c) = challenge.unwrap();
-            c
-        })
-        .filter(|challenge| -> bool { challenge.opponent.is_none() })
-        .collect();
+fn query_get_challenges(deps: Deps, player: Option<String>) -> StdResult<Vec<Challenge>> {
+    let mut challenges: Vec<Challenge> = vec![];
+    let challenges_map = get_challenges_map();
+
+    if let Some(addr) = player {
+        let addr = deps.api.addr_validate(&addr)?;
+        challenges.extend(
+            challenges_map
+                .idx
+                .created_by
+                .prefix(addr.clone())
+                .range(deps.storage, None, None, Order::Ascending)
+                .map(|challenge| -> Challenge {
+                    let (_, c) = challenge.unwrap();
+                    c
+                }),
+        );
+        challenges.extend(
+            challenges_map
+                .idx
+                .opponent
+                .prefix(addr)
+                .range(deps.storage, None, None, Order::Ascending)
+                .map(|challenge| -> Challenge {
+                    let (_, c) = challenge.unwrap();
+                    c
+                }),
+        );
+    } else {
+        challenges.extend(
+            challenges_map
+                .idx
+                .opponent
+                .prefix(Addr::unchecked("none"))
+                .range(deps.storage, None, None, Order::Ascending)
+                .map(|challenge| -> Challenge {
+                    let (_, c) = challenge.unwrap();
+                    c
+                }),
+        );
+    }
     Ok(challenges)
 }
 
-fn query_get_player_info(deps: Deps, player: Addr) -> StdResult<Player> {
-    let player = PLAYERS.load(deps.storage, &player)?;
-    Ok(player)
+fn query_get_games(
+    deps: Deps,
+    game_over: Option<bool>,
+    player: Option<String>,
+) -> StdResult<Vec<GameSummary>> {
+    let mut games = vec![];
+    let games_map = get_games_map();
+    let game_over = game_over.unwrap_or(false);
+    if let Some(addr) = player {
+        let addr = deps.api.addr_validate(&addr)?;
+        games.extend(
+            games_map
+                .idx
+                .player1
+                .prefix(addr.clone())
+                .range(deps.storage, None, None, Order::Ascending)
+                .map(|game| -> GameSummary {
+                    let (_, g) = game.unwrap();
+                    GameSummary::from(&g)
+                })
+                // filter games that are over unless requested
+                .filter(|s| -> bool { game_over || s.status.is_none() }),
+        );
+        games.extend(
+            games_map
+                .idx
+                .player2
+                .prefix(addr)
+                .range(deps.storage, None, None, Order::Ascending)
+                .map(|game| -> GameSummary {
+                    let (_, g) = game.unwrap();
+                    GameSummary::from(&g)
+                })
+                // filter games that are over unless requested
+                .filter(|s| -> bool { game_over || s.status.is_none() }),
+        );
+    } else {
+        games.extend(
+            games_map
+                .range(deps.storage, None, None, Order::Ascending)
+                .map(|game| -> GameSummary {
+                    let (_, g) = game.unwrap();
+                    GameSummary::from(&g)
+                })
+                // filter games that are over unless requested
+                .filter(|s| -> bool { game_over || s.status.is_none() })
+                // limit non-player specific requests to
+                .take(100),
+        );
+    }
+
+    Ok(games)
 }
 
 #[cfg(test)]

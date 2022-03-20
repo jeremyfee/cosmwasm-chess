@@ -21,6 +21,15 @@ pub enum CwChessColor {
     Black,
 }
 
+impl From<&Color> for CwChessColor {
+    fn from(status: &Color) -> CwChessColor {
+        match status {
+            Color::Black => CwChessColor::Black,
+            Color::White => CwChessColor::White,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CwChessGameOver {
@@ -76,6 +85,7 @@ pub struct CwChessGame {
     pub player2: Addr,
     pub status: Option<CwChessGameOver>,
     pub start_height: u64,
+    pub turn_color: Option<CwChessColor>,
 }
 
 impl CwChessGame {
@@ -129,6 +139,11 @@ impl CwChessGame {
             Ok(status) => {
                 self.moves.push(chess_move);
                 self.status = status.as_ref().map(CwChessGameOver::from);
+                self.turn_color = match self.status {
+                    // game over, no next turn
+                    Some(_) => None,
+                    None => Some(CwChessColor::from(&game.get_turn_color())),
+                };
                 Ok(&self.status)
             }
         }
