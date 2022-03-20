@@ -27,6 +27,26 @@
     {
       "type": "object",
       "required": [
+        "get_challenges"
+      ],
+      "properties": {
+        "get_challenges": {
+          "type": "object",
+          "properties": {
+            "player": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_game"
       ],
       "properties": {
@@ -49,29 +69,23 @@
     {
       "type": "object",
       "required": [
-        "get_open_challenges"
+        "get_games"
       ],
       "properties": {
-        "get_open_challenges": {
-          "type": "object"
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_player_info"
-      ],
-      "properties": {
-        "get_player_info": {
+        "get_games": {
           "type": "object",
-          "required": [
-            "player"
-          ],
           "properties": {
+            "game_over": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "player": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         }

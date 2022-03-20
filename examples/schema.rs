@@ -5,7 +5,7 @@ use std::fs::create_dir_all;
 use cosmwasm_chess::cwchess::{
     CwChessAction, CwChessColor, CwChessGame, CwChessGameOver, CwChessMove,
 };
-use cosmwasm_chess::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use cosmwasm_chess::msg::{ExecuteMsg, GameSummary, InstantiateMsg, QueryMsg};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -19,6 +19,7 @@ fn main() {
     export_schema(&schema_for!(CwChessMove), &out_dir);
     export_schema(&schema_for!(CwChessGameOver), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
+    export_schema(&schema_for!(GameSummary), &out_dir);
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
 }

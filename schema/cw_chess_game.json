@@ -49,6 +49,16 @@
           "type": "null"
         }
       ]
+    },
+    "turn_color": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/CwChessColor"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "definitions": {
@@ -89,6 +99,13 @@
           },
           "additionalProperties": false
         }
+      ]
+    },
+    "CwChessColor": {
+      "type": "string",
+      "enum": [
+        "white",
+        "black"
       ]
     },
     "CwChessGameOver": {
