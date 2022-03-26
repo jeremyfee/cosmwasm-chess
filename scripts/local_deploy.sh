@@ -58,7 +58,9 @@ if ! docker ps | grep -q "${CONTAINER_NAME}"; then
       -p 26657:26657 \
       --platform linux/amd64 \
       "${CONTAINER_IMAGE}" \
-      "./setup_and_run.sh" "juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y" \
+      "./setup_and_run.sh" \
+      "juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y" \
+      "juno102fjg5u62qkgsux9z9fl652mw8r98kgcgjv99m" \
   );
   if [ -z "${CONTAINER_ID}" ]; then
     echo "Error starting container, bailing";
@@ -78,7 +80,6 @@ QUERY_ARGS=(
   --output json
 );
 TX_ARGS=(
-  --from test-user
   --gas "${GAS}"
   --gas-adjustment "${GAS_ADJUSTMENT}"
   --gas-prices "${GAS_PRICES}"
@@ -88,15 +89,18 @@ TX_ARGS=(
 
 # create test-user key
 if ! ${DOCKER_EXEC} /bin/sh -c "junod keys list" | grep -q test-user; then
-  echo "# Creating test-user key";
+  # these are "stable" addresses for testing
+  echo "# Creating test-user key ( juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y )";
   ${DOCKER_EXEC} /bin/sh -c "source /opt/test-user.env; echo \$TEST_MNEMONIC | junod keys add test-user --recover" 1>&2;
+  echo "# Creating test-user2 key ( juno102fjg5u62qkgsux9z9fl652mw8r98kgcgjv99m )";
+  ${DOCKER_EXEC} /bin/sh -c "source /opt/test-user.env; echo \$TEST_MNEMONIC | junod keys add test-user2 --recover --account 2" 1>&2;
 fi
 
 # store contract
 echo "# Copying contract";
 docker cp "${CONTRACT_WASM}" "${CONTAINER_NAME}:/opt/CONTRACT.wasm";
 echo -n "# Storing contract ... ";
-STORE=$(${DOCKER_EXEC} junod tx wasm store /opt/CONTRACT.wasm -b block "${TX_ARGS[@]}");
+STORE=$(${DOCKER_EXEC} junod tx wasm store /opt/CONTRACT.wasm -b block --from validator "${TX_ARGS[@]}");
 CODE_ID=$(echo "${STORE}" | tail -n +2 | jq -r '.logs[0].events[-1].attributes[0].value');
 if [ -z "${CODE_ID}" ]; then
   echo "error";
@@ -107,7 +111,7 @@ echo "code_id=${CODE_ID}"
 
 # instantiate contract
 echo -n "# Instantiating contract ... "
-INSTANTIATE=$(${DOCKER_EXEC} junod tx wasm instantiate "${CODE_ID}" "${CONTRACT_INSTANTIATE_MESSAGE}" --label "${CONTRACT_LABEL}" --no-admin "${TX_ARGS[@]}");
+INSTANTIATE=$(${DOCKER_EXEC} junod tx wasm instantiate "${CODE_ID}" "${CONTRACT_INSTANTIATE_MESSAGE}" --from validator --label "${CONTRACT_LABEL}" --no-admin "${TX_ARGS[@]}");
 # wait for transaction
 sleep 10;
 CONTRACTS=$(${DOCKER_EXEC} junod query wasm list-contract-by-code "${CODE_ID}" "${QUERY_ARGS[@]}");
@@ -128,18 +132,23 @@ cat << EOF
 ## Stop the container
 
 
-# junod_execute '{MESSAGE}'
+# junod_execute '{MESSAGE}' --from test-user[2]
 junod_execute() {
-  ${DOCKER_EXEC} junod tx wasm execute "${CONTRACT_ADDR}" "\${1}" ${TX_ARGS[@]};
+  MESSAGE=\$1;
+  shift;
+  ${DOCKER_EXEC} junod tx wasm execute "${CONTRACT_ADDR}" "\${MESSAGE}" ${TX_ARGS[@]} "\${@}";
 }
 
 # junod_query '{MESSAGE}'
 junod_query() {
-  ${DOCKER_EXEC} junod query wasm contract-state smart "${CONTRACT_ADDR}" "\${1}" ${QUERY_ARGS[@]};
+  MESSAGE=\$1;
+  shift;
+  ${DOCKER_EXEC} junod query wasm contract-state smart "${CONTRACT_ADDR}" "\${MESSAGE}" ${QUERY_ARGS[@]};
 }
 
-junod_stop() {
+junod_destroy() {
   docker stop ${CONTAINER_NAME}
+  docker rm ${CONTAINER_NAME}
 }
 
 EOF
