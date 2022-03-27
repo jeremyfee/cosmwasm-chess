@@ -10,7 +10,7 @@ exclude = [
 
 
 [dependencies]
-chess-engine = "0.1.2"
+chess-engine = { git = "https://github.com/jeremyfee/chess-engine", branch = "game" }
 cosmwasm-std = "1.0.0-beta7"
 cosmwasm-storage = "1.0.0-beta7"
 cw-storage-plus = "0.13.1"

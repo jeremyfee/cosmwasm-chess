@@ -1,6 +1,5 @@
-use crate::chess_engine_game::{Game, GameAction, GameOver};
 use crate::error::ContractError;
-use chess_engine::Color;
+use chess_engine::{Color, Game, GameAction, GameOver};
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
