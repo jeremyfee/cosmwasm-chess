@@ -475,4 +475,82 @@ mod tests {
         )
         .unwrap();
     }
+
+    #[test]
+    fn test_resign() {
+        let mut deps = mock_dependencies();
+
+        // initialize
+        instantiate(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("owner", &[]),
+            InstantiateMsg {},
+        )
+        .unwrap();
+        // create game
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("black", &[]),
+            ExecuteMsg::CreateChallenge {
+                block_time_limit: None,
+                opponent: None,
+                // creator is black
+                play_as: Some(CwChessColor::Black),
+            },
+        )
+        .unwrap();
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("white", &[]),
+            ExecuteMsg::AcceptChallenge { challenge_id: 1 },
+        )
+        .unwrap();
+
+        // check game status
+        let game = from_binary::<CwChessGame>(
+            &query(deps.as_ref(), mock_env(), QueryMsg::GetGame { game_id: 1 }).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(game.player1, "white");
+        assert_eq!(game.player2, "black");
+        assert_eq!(game.status, None);
+        assert_eq!(game.turn_color, Some(CwChessColor::White));
+
+        // white resigns
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("white", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::Resign {},
+                game_id: 1,
+            },
+        )
+        .unwrap();
+
+        // game status updated
+        let game = from_binary::<CwChessGame>(
+            &query(deps.as_ref(), mock_env(), QueryMsg::GetGame { game_id: 1 }).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(game.status, Some(CwChessGameOver::WhiteResigns));
+
+        // cannot move after game over
+        let response = execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("white", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::MakeMove("d4".to_string()),
+                game_id: 1,
+            },
+        );
+        match response.unwrap_err() {
+            ContractError::GameAlreadyOver { .. } => {}
+            e => panic!("unexpected error: {:?}", e),
+        }
+    }
 }

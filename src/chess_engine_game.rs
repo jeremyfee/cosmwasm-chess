@@ -97,7 +97,7 @@ impl Game {
     fn resign(&mut self) -> Result<&Option<GameOver>, GameError> {
         self.status = match self.get_turn_color() {
             Color::Black => Some(GameOver::BlackResigns),
-            Color::White => Some(GameOver::BlackResigns),
+            Color::White => Some(GameOver::WhiteResigns),
         };
         Ok(&self.status)
     }
