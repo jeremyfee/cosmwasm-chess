@@ -112,8 +112,8 @@ fn execute_accept_challenge(
     let game = CwChessGame {
         block_time_limit: challenge.block_time_limit,
         game_id,
-        player1,
-        player2,
+        player1: player1.clone(),
+        player2: player2.clone(),
         moves: vec![],
         start_height,
         status: None,
@@ -123,7 +123,12 @@ fn execute_accept_challenge(
     let games_map = get_games_map();
     games_map.save(deps.storage, game_id, &game)?;
     challenges_map.remove(deps.storage, challenge_id)?;
-    Ok(Response::new().add_attribute("game_id", game_id.to_string()))
+
+    Ok(Response::new()
+        .add_attribute("accept_challenge", challenge_id.to_string())
+        .add_attribute("game_id", game_id.to_string())
+        .add_attribute("player1", player1)
+        .add_attribute("player2", player2))
 }
 
 fn execute_cancel_challenge(
@@ -144,7 +149,8 @@ fn execute_cancel_challenge(
         }
     };
     challenges_map.remove(deps.storage, challenge.challenge_id)?;
-    Ok(Response::new())
+
+    Ok(Response::new().add_attribute("cancel_challenge", challenge_id.to_string()))
 }
 
 fn execute_create_challenge(
@@ -170,13 +176,20 @@ fn execute_create_challenge(
         block_time_limit,
         challenge_id,
         created_block,
-        created_by,
-        opponent,
+        created_by: created_by.clone(),
+        opponent: opponent.clone(),
         play_as,
     };
     let challenges_map = get_challenges_map();
     challenges_map.save(deps.storage, challenge_id, &challenge)?;
-    Ok(Response::new().add_attribute("challenge_id", challenge_id.to_string()))
+
+    Ok(Response::new()
+        .add_attribute("create_challenge", challenge_id.to_string())
+        .add_attribute("created_by", created_by)
+        .add_attribute(
+            "opponent",
+            opponent.unwrap_or_else(|| Addr::unchecked("none")),
+        ))
 }
 
 fn execute_move(
@@ -202,20 +215,25 @@ fn execute_move(
             }
         }
     })?;
+
     Ok(Response::new()
         .add_attribute("game_id", game.game_id.to_string())
-        .add_attribute("action", format!("{:?}", action)))
+        .add_attribute("move", format!("{:?}", action))
+        .add_attribute("player1", game.player1)
+        .add_attribute("player2", game.player2))
 }
 
 fn query_get_challenge(deps: Deps, challenge_id: u64) -> StdResult<Challenge> {
     let challenges_map = get_challenges_map();
     let challenge = challenges_map.load(deps.storage, challenge_id)?;
+
     Ok(challenge)
 }
 
 fn query_get_game(deps: Deps, game_id: u64) -> StdResult<CwChessGame> {
     let games_map = get_games_map();
     let game = games_map.load(deps.storage, game_id)?;
+
     Ok(game)
 }
 
