@@ -124,7 +124,7 @@ impl CwChessGame {
         chess_move: CwChessMove,
     ) -> Result<&Option<CwChessGameOver>, ContractError> {
         if self.status.is_some() {
-            return Err(ContractError::GameAlreadyFinished {});
+            return Err(ContractError::GameAlreadyOver {});
         }
         let mut game = self.load_game()?;
         let player_to_move = match game.get_turn_color() {

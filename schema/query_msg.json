@@ -33,6 +33,14 @@
         "get_challenges": {
           "type": "object",
           "properties": {
+            "after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "player": {
               "type": [
                 "string",
@@ -75,6 +83,14 @@
         "get_games": {
           "type": "object",
           "properties": {
+            "after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "game_over": {
               "type": [
                 "boolean",

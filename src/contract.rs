@@ -91,6 +91,9 @@ fn execute_accept_challenge(
             if challenge.opponent.is_some() && challenge.opponent != Some(player.clone()) {
                 return Err(ContractError::NotYourChallenge {});
             }
+            if challenge.created_by == player {
+                return Err(ContractError::CannotPlaySelf {});
+            }
             challenge
         }
         _ => {
@@ -154,7 +157,13 @@ fn execute_create_challenge(
 ) -> Result<Response, ContractError> {
     let challenge_id = next_challenge_id(deps.storage)?;
     let opponent = match opponent {
-        Some(addr) => Some(deps.api.addr_validate(&addr)?),
+        Some(addr) => {
+            let addr = deps.api.addr_validate(&addr)?;
+            if created_by == addr {
+                return Err(ContractError::CannotPlaySelf {});
+            }
+            Some(addr)
+        }
         None => None,
     };
     let challenge = Challenge {

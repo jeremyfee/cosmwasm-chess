@@ -5,21 +5,23 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
-
     #[error("Unauthorized")]
     Unauthorized {},
+
     // Add any other custom errors you like here.
     // Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
-    #[error("ChallengeNotFound")]
+    #[error("cannot play self")]
+    CannotPlaySelf {},
+    #[error("challenge not found")]
     ChallengeNotFound {},
-    #[error("NotYourChallenge")]
-    NotYourChallenge {},
-    #[error("Game Already Started")]
-    GameAlreadyFinished {},
-    #[error("GameNotFound")]
+    #[error("game already over")]
+    GameAlreadyOver {},
+    #[error("game not found")]
     GameNotFound {},
-    #[error("InvalidMove")]
+    #[error("invalid move")]
     InvalidMove {},
-    #[error("NotYourTurn")]
+    #[error("not your challenge")]
+    NotYourChallenge {},
+    #[error("not your turn")]
     NotYourTurn {},
 }
