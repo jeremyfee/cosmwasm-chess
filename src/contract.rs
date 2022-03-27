@@ -10,7 +10,8 @@ use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessMove};
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, GameSummary, InstantiateMsg, QueryMsg};
 use crate::state::{
-    get_challenges_map, get_games_map, next_challenge_id, next_game_id, Challenge, State, STATE,
+    get_challenges_map, get_games_map, merge_iters, next_challenge_id, next_game_id, Challenge,
+    State, STATE,
 };
 
 // version info for migration info
@@ -214,57 +215,43 @@ fn query_get_challenges(
     after: Option<u64>,
     player: Option<String>,
 ) -> StdResult<Vec<Challenge>> {
-    let mut challenges: Vec<Challenge> = vec![];
     let challenges_map = get_challenges_map();
+    let after = after.map(Bound::exclusive);
 
-    if let Some(addr) = player {
-        let addr = deps.api.addr_validate(&addr)?;
-        challenges.extend(
-            challenges_map
-                .idx
-                .created_by
-                .prefix(addr.clone())
-                .range(
-                    deps.storage,
-                    after.map(Bound::exclusive),
-                    None,
-                    Order::Ascending,
-                )
-                .map(|result| -> Challenge { result.unwrap().1 })
-                .take(25),
-        );
-        challenges.extend(
-            challenges_map
-                .idx
-                .opponent
-                .prefix(addr)
-                .range(
-                    deps.storage,
-                    after.map(Bound::exclusive),
-                    None,
-                    Order::Ascending,
-                )
-                .map(|result| -> Challenge { result.unwrap().1 })
-                .take(25),
-        );
-        challenges.sort_by_key(|s| -> u64 { s.challenge_id });
-        challenges.truncate(25);
-    } else {
-        challenges.extend(
-            challenges_map
+    let challenges = match player {
+        None => {
+            let open_challenges = challenges_map
                 .idx
                 .opponent
                 .prefix(Addr::unchecked("none"))
-                .range(
-                    deps.storage,
-                    after.map(Bound::exclusive),
-                    None,
-                    Order::Ascending,
-                )
-                .map(|result| -> Challenge { result.unwrap().1 })
-                .take(25),
-        );
-    }
+                .range(deps.storage, after, None, Order::Ascending)
+                .map(|result| -> Challenge { result.unwrap().1 });
+
+            open_challenges.take(25).collect::<Vec<_>>()
+        }
+        Some(addr) => {
+            let addr = deps.api.addr_validate(&addr)?;
+            let created_by = challenges_map
+                .idx
+                .created_by
+                .prefix(addr.clone())
+                .range(deps.storage, after.clone(), None, Order::Ascending)
+                .map(|result| -> Challenge { result.unwrap().1 });
+            let opponent = challenges_map
+                .idx
+                .opponent
+                .prefix(addr)
+                .range(deps.storage, after, None, Order::Ascending)
+                .map(|result| -> Challenge { result.unwrap().1 });
+
+            merge_iters(created_by, opponent, |c1, c2| -> bool {
+                c1.challenge_id <= c2.challenge_id
+            })
+            .take(25)
+            .collect::<Vec<_>>()
+        }
+    };
+
     Ok(challenges)
 }
 
@@ -274,63 +261,46 @@ fn query_get_games(
     game_over: Option<bool>,
     player: Option<String>,
 ) -> StdResult<Vec<GameSummary>> {
-    let mut games = vec![];
     let games_map = get_games_map();
+    let after = after.map(Bound::exclusive);
     let game_over = game_over.unwrap_or(false);
-    if let Some(addr) = player {
-        let addr = deps.api.addr_validate(&addr)?;
-        games.extend(
-            games_map
+
+    let games = match player {
+        None => {
+            let all_games = games_map
+                .range(deps.storage, after, None, Order::Ascending)
+                .map(|result| -> CwChessGame { result.unwrap().1 });
+
+            all_games
+                .filter(|g| -> bool { game_over || g.status.is_none() })
+                .map(|game| -> GameSummary { GameSummary::from(&game) })
+                .take(25)
+                .collect::<Vec<_>>()
+        }
+        Some(addr) => {
+            let addr = deps.api.addr_validate(&addr)?;
+            let player1 = games_map
                 .idx
                 .player1
                 .prefix(addr.clone())
-                .range(
-                    deps.storage,
-                    after.map(Bound::exclusive),
-                    None,
-                    Order::Ascending,
-                )
-                .map(|result| -> CwChessGame { result.unwrap().1 })
-                // filter games that are over unless requested
-                .filter(|g| -> bool { game_over || g.status.is_none() })
-                .map(|game| -> GameSummary { GameSummary::from(&game) })
-                .take(25),
-        );
-        games.extend(
-            games_map
+                .range(deps.storage, after.clone(), None, Order::Ascending)
+                .map(|result| -> CwChessGame { result.unwrap().1 });
+            let player2 = games_map
                 .idx
                 .player2
                 .prefix(addr)
-                .range(
-                    deps.storage,
-                    after.map(Bound::exclusive),
-                    None,
-                    Order::Ascending,
-                )
-                .map(|result| -> CwChessGame { result.unwrap().1 })
-                // filter games that are over unless requested
-                .filter(|g| -> bool { game_over || g.status.is_none() })
-                .map(|game| -> GameSummary { GameSummary::from(&game) })
-                .take(25),
-        );
-        games.sort_by_key(|s| -> u64 { s.game_id });
-        games.truncate(25);
-    } else {
-        games.extend(
-            games_map
-                .range(
-                    deps.storage,
-                    after.map(Bound::exclusive),
-                    None,
-                    Order::Ascending,
-                )
-                .map(|result| -> CwChessGame { result.unwrap().1 })
-                // filter games that are over unless requested
-                .filter(|g| -> bool { game_over || g.status.is_none() })
-                .map(|game| -> GameSummary { GameSummary::from(&game) })
-                .take(25),
-        );
-    }
+                .range(deps.storage, after, None, Order::Ascending)
+                .map(|result| -> CwChessGame { result.unwrap().1 });
+
+            merge_iters(player1, player2, |g1, g2| -> bool {
+                g1.game_id <= g2.game_id
+            })
+            .filter(|g| -> bool { game_over || g.status.is_none() })
+            .map(|game| -> GameSummary { GameSummary::from(&game) })
+            .take(25)
+            .collect::<Vec<_>>()
+        }
+    };
 
     Ok(games)
 }

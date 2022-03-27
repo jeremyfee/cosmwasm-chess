@@ -1,8 +1,8 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
 use cosmwasm_std::{Addr, StdResult, Storage};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::iter::Peekable;
 
 use crate::cwchess::{CwChessColor, CwChessGame};
 
@@ -105,4 +105,62 @@ pub fn get_games_map<'a>() -> IndexedMap<'a, u64, CwChessGame, GameIndexes<'a>> 
         ),
     };
     IndexedMap::new("games", indexes)
+}
+
+pub fn merge_iters<I, J, K>(
+    iter1: I,
+    iter2: J,
+    is_less_than: fn(&I::Item, &J::Item) -> bool,
+) -> IterMerge<I, J, K>
+where
+    I: Iterator<Item = K>,
+    J: Iterator<Item = K>,
+{
+    IterMerge {
+        iter1: iter1.peekable(),
+        iter2: iter2.peekable(),
+        is_less_than,
+    }
+}
+
+/**
+ * Utility to merge multiple index ranges.
+ *
+ * Inspired by itertools 0.10.0 merge_join_by.
+ */
+pub struct IterMerge<I, J, K>
+where
+    I: Iterator<Item = K>,
+    J: Iterator<Item = K>,
+{
+    iter1: Peekable<I>,
+    iter2: Peekable<J>,
+    // return true to return first item, false for second item
+    is_less_than: fn(&K, &K) -> bool,
+}
+
+impl<I, J, K> Iterator for IterMerge<I, J, K>
+where
+    I: Iterator<Item = K>,
+    J: Iterator<Item = K>,
+{
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let item1 = self.iter1.peek();
+        let item2 = self.iter2.peek();
+        match (item1, item2) {
+            (None, None) => None,
+            (Some(_), None) => self.iter1.next(),
+            (None, Some(_)) => self.iter2.next(),
+            (Some(item1), Some(item2)) => {
+                let is_less_than = self.is_less_than;
+                if is_less_than(item1, item2) {
+                    self.iter1.next()
+                } else {
+                    self.iter2.next()
+                }
+            }
+        }
+    }
 }
