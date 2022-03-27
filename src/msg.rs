@@ -38,12 +38,14 @@ pub enum QueryMsg {
         challenge_id: u64,
     },
     GetChallenges {
+        after: Option<u64>,
         player: Option<String>,
     },
     GetGame {
         game_id: u64,
     },
     GetGames {
+        after: Option<u64>,
         game_over: Option<bool>,
         player: Option<String>,
     },

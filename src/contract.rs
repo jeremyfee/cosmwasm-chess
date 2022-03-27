@@ -4,6 +4,7 @@ use cosmwasm_std::{
     to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult,
 };
 use cw2::set_contract_version;
+use cw_storage_plus::Bound;
 
 use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessMove};
 use crate::error::ContractError;
@@ -185,10 +186,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetChallenge { challenge_id } => {
             to_binary(&query_get_challenge(deps, challenge_id)?)
         }
-        QueryMsg::GetChallenges { player } => to_binary(&query_get_challenges(deps, player)?),
-        QueryMsg::GetGames { game_over, player } => {
-            to_binary(&query_get_games(deps, game_over, player)?)
+        QueryMsg::GetChallenges { after, player } => {
+            to_binary(&query_get_challenges(deps, after, player)?)
         }
+        QueryMsg::GetGames {
+            after,
+            game_over,
+            player,
+        } => to_binary(&query_get_games(deps, after, game_over, player)?),
     }
 }
 
@@ -204,7 +209,11 @@ fn query_get_game(deps: Deps, game_id: u64) -> StdResult<CwChessGame> {
     Ok(game)
 }
 
-fn query_get_challenges(deps: Deps, player: Option<String>) -> StdResult<Vec<Challenge>> {
+fn query_get_challenges(
+    deps: Deps,
+    after: Option<u64>,
+    player: Option<String>,
+) -> StdResult<Vec<Challenge>> {
     let mut challenges: Vec<Challenge> = vec![];
     let challenges_map = get_challenges_map();
 
@@ -215,34 +224,45 @@ fn query_get_challenges(deps: Deps, player: Option<String>) -> StdResult<Vec<Cha
                 .idx
                 .created_by
                 .prefix(addr.clone())
-                .range(deps.storage, None, None, Order::Ascending)
-                .map(|challenge| -> Challenge {
-                    let (_, c) = challenge.unwrap();
-                    c
-                }),
+                .range(
+                    deps.storage,
+                    after.map(Bound::exclusive),
+                    None,
+                    Order::Ascending,
+                )
+                .map(|result| -> Challenge { result.unwrap().1 })
+                .take(25),
         );
         challenges.extend(
             challenges_map
                 .idx
                 .opponent
                 .prefix(addr)
-                .range(deps.storage, None, None, Order::Ascending)
-                .map(|challenge| -> Challenge {
-                    let (_, c) = challenge.unwrap();
-                    c
-                }),
+                .range(
+                    deps.storage,
+                    after.map(Bound::exclusive),
+                    None,
+                    Order::Ascending,
+                )
+                .map(|result| -> Challenge { result.unwrap().1 })
+                .take(25),
         );
+        challenges.sort_by_key(|s| -> u64 { s.challenge_id });
+        challenges.truncate(25);
     } else {
         challenges.extend(
             challenges_map
                 .idx
                 .opponent
                 .prefix(Addr::unchecked("none"))
-                .range(deps.storage, None, None, Order::Ascending)
-                .map(|challenge| -> Challenge {
-                    let (_, c) = challenge.unwrap();
-                    c
-                }),
+                .range(
+                    deps.storage,
+                    after.map(Bound::exclusive),
+                    None,
+                    Order::Ascending,
+                )
+                .map(|result| -> Challenge { result.unwrap().1 })
+                .take(25),
         );
     }
     Ok(challenges)
@@ -250,6 +270,7 @@ fn query_get_challenges(deps: Deps, player: Option<String>) -> StdResult<Vec<Cha
 
 fn query_get_games(
     deps: Deps,
+    after: Option<u64>,
     game_over: Option<bool>,
     player: Option<String>,
 ) -> StdResult<Vec<GameSummary>> {
@@ -263,39 +284,51 @@ fn query_get_games(
                 .idx
                 .player1
                 .prefix(addr.clone())
-                .range(deps.storage, None, None, Order::Ascending)
-                .map(|game| -> GameSummary {
-                    let (_, g) = game.unwrap();
-                    GameSummary::from(&g)
-                })
+                .range(
+                    deps.storage,
+                    after.map(Bound::exclusive),
+                    None,
+                    Order::Ascending,
+                )
+                .map(|result| -> CwChessGame { result.unwrap().1 })
                 // filter games that are over unless requested
-                .filter(|s| -> bool { game_over || s.status.is_none() }),
+                .filter(|g| -> bool { game_over || g.status.is_none() })
+                .map(|game| -> GameSummary { GameSummary::from(&game) })
+                .take(25),
         );
         games.extend(
             games_map
                 .idx
                 .player2
                 .prefix(addr)
-                .range(deps.storage, None, None, Order::Ascending)
-                .map(|game| -> GameSummary {
-                    let (_, g) = game.unwrap();
-                    GameSummary::from(&g)
-                })
+                .range(
+                    deps.storage,
+                    after.map(Bound::exclusive),
+                    None,
+                    Order::Ascending,
+                )
+                .map(|result| -> CwChessGame { result.unwrap().1 })
                 // filter games that are over unless requested
-                .filter(|s| -> bool { game_over || s.status.is_none() }),
+                .filter(|g| -> bool { game_over || g.status.is_none() })
+                .map(|game| -> GameSummary { GameSummary::from(&game) })
+                .take(25),
         );
+        games.sort_by_key(|s| -> u64 { s.game_id });
+        games.truncate(25);
     } else {
         games.extend(
             games_map
-                .range(deps.storage, None, None, Order::Ascending)
-                .map(|game| -> GameSummary {
-                    let (_, g) = game.unwrap();
-                    GameSummary::from(&g)
-                })
+                .range(
+                    deps.storage,
+                    after.map(Bound::exclusive),
+                    None,
+                    Order::Ascending,
+                )
+                .map(|result| -> CwChessGame { result.unwrap().1 })
                 // filter games that are over unless requested
-                .filter(|s| -> bool { game_over || s.status.is_none() })
-                // limit non-player specific requests to
-                .take(100),
+                .filter(|g| -> bool { game_over || g.status.is_none() })
+                .map(|game| -> GameSummary { GameSummary::from(&game) })
+                .take(25),
         );
     }
 
