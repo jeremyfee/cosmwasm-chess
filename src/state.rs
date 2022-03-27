@@ -8,7 +8,7 @@ use crate::cwchess::{CwChessColor, CwChessGame};
 
 // STATE
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct State {
     pub owner: Addr,

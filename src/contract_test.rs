@@ -3,7 +3,7 @@ mod tests {
     use crate::contract::{execute, instantiate, query};
     use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessGameOver, CwChessMove};
     use crate::error::ContractError;
-    use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+    use crate::msg::{ExecuteMsg, GameSummary, InstantiateMsg, QueryMsg};
 
     use cosmwasm_std::testing::{
         mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
@@ -233,6 +233,117 @@ mod tests {
         )
         .unwrap();
         assert_eq!(game.status, Some(CwChessGameOver::DrawAccepted {}));
+    }
+
+    #[test]
+    fn test_get_games() {
+        let mut deps = mock_dependencies();
+
+        // initialize
+        instantiate(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("owner", &[]),
+            InstantiateMsg {},
+        )
+        .unwrap();
+
+        // create first game (with two as white, one as black)
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("one", &[]),
+            ExecuteMsg::CreateChallenge {
+                block_time_limit: None,
+                opponent: None,
+                play_as: Some(CwChessColor::Black),
+            },
+        )
+        .unwrap();
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("two", &[]),
+            ExecuteMsg::AcceptChallenge { challenge_id: 1 },
+        )
+        .unwrap();
+
+        // get_games should return the game
+        let games = from_binary::<Vec<GameSummary>>(
+            &query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::GetGames {
+                    after: None,
+                    game_over: None,
+                    player: None,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(games.len(), 1);
+        assert_eq!(games[0].turn_color, Some(CwChessColor::White));
+
+        // create second game (with one as white, two as black)
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("two", &[]),
+            ExecuteMsg::CreateChallenge {
+                block_time_limit: None,
+                opponent: None,
+                // creator is black
+                play_as: Some(CwChessColor::Black),
+            },
+        )
+        .unwrap();
+        // opponent can accept
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("one", &[]),
+            ExecuteMsg::AcceptChallenge { challenge_id: 2 },
+        )
+        .unwrap();
+
+        // white makes move in first game
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("two", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::MakeMove("d4".to_string()),
+                game_id: 1,
+            },
+        )
+        .unwrap();
+
+        // get games
+        // internally player1 index is scanned before player2 index
+        // this should still return games in order by game_id
+        let games = from_binary::<Vec<GameSummary>>(
+            &query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::GetGames {
+                    after: None,
+                    game_over: None,
+                    player: Some("one".to_string()),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(games.len(), 2);
+        assert_eq!(games[0].game_id, 1);
+        assert_eq!(games[0].turn_color, Some(CwChessColor::Black));
+        assert_eq!(games[0].player1, "two");
+        assert_eq!(games[0].player2, "one");
+        assert_eq!(games[1].game_id, 2);
+        assert_eq!(games[1].turn_color, Some(CwChessColor::White));
+        assert_eq!(games[1].player1, "one");
+        assert_eq!(games[1].player2, "two");
     }
 
     #[test]
