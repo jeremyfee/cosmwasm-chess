@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::contract::{execute, instantiate, query};
-    use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessMove};
+    use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessGameOver, CwChessMove};
     use crate::error::ContractError;
     use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -11,7 +11,7 @@ mod tests {
     use cosmwasm_std::{coins, from_binary};
 
     #[test]
-    fn proper_initialization() {
+    fn test_initialize() {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
         let msg = InstantiateMsg {};
@@ -20,33 +20,6 @@ mod tests {
         // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
-    }
-
-    #[test]
-    fn test_create_challenge() {
-        let mut deps = mock_dependencies();
-
-        let msg = InstantiateMsg {};
-        let mut env = mock_env();
-        env.block.height = 123;
-        let info = mock_info("owner", &coins(1000, "hello"));
-        let _contract_addr = env.clone().contract.address;
-        let init_res = instantiate(deps.as_mut(), env, info, msg).unwrap();
-        assert_eq!(0, init_res.messages.len());
-
-        // create a challenge with an opponent
-        let msg = ExecuteMsg::CreateChallenge {
-            block_time_limit: None,
-            opponent: Some("opponent".to_string()),
-            play_as: None,
-        };
-        let mut env = mock_env();
-        env.block.height = 456;
-        let info = mock_info("creator", &[]);
-        let execute_res = execute(deps.as_mut(), env, info, msg);
-        let attr = execute_res.unwrap().attributes[0].clone();
-        assert_eq!(&attr.key, "create_challenge");
-        assert_eq!(&attr.value, "1");
     }
 
     #[test]
@@ -153,6 +126,113 @@ mod tests {
         let attr = attrs[1].clone();
         assert_eq!(&attr.key, "game_id");
         assert_eq!(&attr.value, "1");
+    }
+
+    #[test]
+    fn test_create_challenge() {
+        let mut deps = mock_dependencies();
+
+        let msg = InstantiateMsg {};
+        let mut env = mock_env();
+        env.block.height = 123;
+        let info = mock_info("owner", &coins(1000, "hello"));
+        let _contract_addr = env.clone().contract.address;
+        let init_res = instantiate(deps.as_mut(), env, info, msg).unwrap();
+        assert_eq!(0, init_res.messages.len());
+
+        // create a challenge with an opponent
+        let msg = ExecuteMsg::CreateChallenge {
+            block_time_limit: None,
+            opponent: Some("opponent".to_string()),
+            play_as: None,
+        };
+        let mut env = mock_env();
+        env.block.height = 456;
+        let info = mock_info("creator", &[]);
+        let execute_res = execute(deps.as_mut(), env, info, msg);
+        let attr = execute_res.unwrap().attributes[0].clone();
+        assert_eq!(&attr.key, "create_challenge");
+        assert_eq!(&attr.value, "1");
+    }
+
+    #[test]
+    fn test_draw() {
+        let mut deps = mock_dependencies();
+
+        // initialize
+        instantiate(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("owner", &[]),
+            InstantiateMsg {},
+        )
+        .unwrap();
+        // create challenge
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("black", &[]),
+            ExecuteMsg::CreateChallenge {
+                block_time_limit: None,
+                opponent: None,
+                // creator is black
+                play_as: Some(CwChessColor::Black),
+            },
+        )
+        .unwrap();
+        // opponent can accept
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("white", &[]),
+            ExecuteMsg::AcceptChallenge { challenge_id: 1 },
+        )
+        .unwrap();
+
+        // cannot accept draw if not offered yet
+        let response = execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("white", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::AcceptDraw {},
+                game_id: 1,
+            },
+        );
+        match response.unwrap_err() {
+            ContractError::InvalidMove { .. } => {}
+            e => panic!("unexpected error: {:?}", e),
+        }
+
+        // white offers draw
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("white", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::OfferDraw("d4".to_string()),
+                game_id: 1,
+            },
+        )
+        .unwrap();
+
+        // black accepts
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("black", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::AcceptDraw {},
+                game_id: 1,
+            },
+        )
+        .unwrap();
+
+        let game = from_binary::<CwChessGame>(
+            &query(deps.as_ref(), mock_env(), QueryMsg::GetGame { game_id: 1 }).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(game.status, Some(CwChessGameOver::DrawAccepted {}));
     }
 
     #[test]
