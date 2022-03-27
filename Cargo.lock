@@ -118,7 +118,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "chess-engine"
 version = "0.1.2"
-source = "git+https://github.com/jeremyfee/chess-engine?branch=game#082d013945a037c8966fcc4dc7fcddd7d29d4f3a"
+source = "git+https://github.com/jeremyfee/chess-engine?branch=game#cf8f9664e75d8c8ef38d86bbc1d5f52c43d7458a"
 
 [[package]]
 name = "clru"
