@@ -102,12 +102,16 @@ docker cp "${CONTRACT_WASM}" "${CONTAINER_NAME}:/opt/CONTRACT.wasm";
 echo -n "# Storing contract ... ";
 STORE=$(${DOCKER_EXEC} junod tx wasm store /opt/CONTRACT.wasm -b block --from validator "${TX_ARGS[@]}");
 CODE_ID=$(echo "${STORE}" | tail -n +2 | jq -r '.logs[0].events[-1].attributes[0].value');
+echo "code_id=${CODE_ID}";
+
 if [ -z "${CODE_ID}" ]; then
   echo "error";
-  echo "${STORE}";
+  echo "${STORE}"
   exit 1;
+else
+  # show gas estimate
+  echo "${STORE}" | head -n 1 1>&2;
 fi
-echo "code_id=${CODE_ID}"
 
 # instantiate contract
 echo -n "# Instantiating contract ... "
@@ -116,13 +120,15 @@ INSTANTIATE=$(${DOCKER_EXEC} junod tx wasm instantiate "${CODE_ID}" "${CONTRACT_
 sleep 10;
 CONTRACTS=$(${DOCKER_EXEC} junod query wasm list-contract-by-code "${CODE_ID}" "${QUERY_ARGS[@]}");
 CONTRACT_ADDR=$(echo "${CONTRACTS}" | jq -r '.contracts[-1]')
-if [ "${CONTRACT_ADDR}" == "null" ]; then
-  echo "error";
-  echo "${INSTANTIATE}";
-  echo "${CONTRACTS}";
-  exit 1;
-fi
 echo "addr=${CONTRACT_ADDR}"
+if [ "${CONTRACT_ADDR}" == "null" ]; then
+  echo "error" 1>&2;
+  echo "${INSTANTIATE}" 1>&2;
+  echo "${CONTRACTS}" 1>&2;
+  exit 1;
+else
+  echo "${INSTANTIATE}" | head -n 1 1>&2;
+fi
 
 ###############################################################################
 
