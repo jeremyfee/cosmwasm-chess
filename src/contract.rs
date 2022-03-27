@@ -50,18 +50,36 @@ pub fn execute(
             opponent,
             play_as,
             block_time_limit,
-        } => try_create_challenge(deps, sender, opponent, play_as, block_time_limit, height),
+        } => execute_create_challenge(deps, sender, opponent, play_as, block_time_limit, height),
         ExecuteMsg::AcceptChallenge { challenge_id } => {
-            try_accept_challenge(deps, challenge_id, sender, height)
+            execute_accept_challenge(deps, challenge_id, sender, height)
         }
         ExecuteMsg::CancelChallenge { challenge_id } => {
-            try_cancel_challenge(deps, challenge_id, sender)
+            execute_cancel_challenge(deps, challenge_id, sender)
         }
-        ExecuteMsg::Move { action, game_id } => try_move(deps, game_id, sender, action, height),
+        ExecuteMsg::Move { action, game_id } => execute_move(deps, game_id, sender, action, height),
     }
 }
 
-fn try_accept_challenge(
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::GetGame { game_id } => to_binary(&query_get_game(deps, game_id)?),
+        QueryMsg::GetChallenge { challenge_id } => {
+            to_binary(&query_get_challenge(deps, challenge_id)?)
+        }
+        QueryMsg::GetChallenges { after, player } => {
+            to_binary(&query_get_challenges(deps, after, player)?)
+        }
+        QueryMsg::GetGames {
+            after,
+            game_over,
+            player,
+        } => to_binary(&query_get_games(deps, after, game_over, player)?),
+    }
+}
+
+fn execute_accept_challenge(
     deps: DepsMut,
     challenge_id: u64,
     player: Addr,
@@ -105,7 +123,7 @@ fn try_accept_challenge(
     Ok(Response::new().add_attribute("game_id", game_id.to_string()))
 }
 
-fn try_cancel_challenge(
+fn execute_cancel_challenge(
     deps: DepsMut,
     challenge_id: u64,
     player: Addr,
@@ -126,7 +144,7 @@ fn try_cancel_challenge(
     Ok(Response::new())
 }
 
-fn try_create_challenge(
+fn execute_create_challenge(
     deps: DepsMut,
     created_by: Addr,
     opponent: Option<String>,
@@ -152,7 +170,7 @@ fn try_create_challenge(
     Ok(Response::new().add_attribute("challenge_id", challenge_id.to_string()))
 }
 
-fn try_move(
+fn execute_move(
     deps: DepsMut,
     game_id: u64,
     player: Addr,
@@ -178,24 +196,6 @@ fn try_move(
     Ok(Response::new()
         .add_attribute("game_id", game.game_id.to_string())
         .add_attribute("action", format!("{:?}", action)))
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::GetGame { game_id } => to_binary(&query_get_game(deps, game_id)?),
-        QueryMsg::GetChallenge { challenge_id } => {
-            to_binary(&query_get_challenge(deps, challenge_id)?)
-        }
-        QueryMsg::GetChallenges { after, player } => {
-            to_binary(&query_get_challenges(deps, after, player)?)
-        }
-        QueryMsg::GetGames {
-            after,
-            game_over,
-            player,
-        } => to_binary(&query_get_games(deps, after, game_over, player)?),
-    }
 }
 
 fn query_get_challenge(deps: Deps, challenge_id: u64) -> StdResult<Challenge> {
