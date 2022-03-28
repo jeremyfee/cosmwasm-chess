@@ -23,6 +23,9 @@ pub enum ExecuteMsg {
         challenge_id: u64,
         // sender is creator
     },
+    DeclareTimeout {
+        game_id: u64,
+    },
     Move {
         game_id: u64,
         action: CwChessAction,
@@ -72,7 +75,7 @@ impl From<&CwChessGame> for GameSummary {
             player2: game.player2.to_string(),
             status: game.status.clone(),
             start_height: game.start_height,
-            turn_color: game.turn_color.clone(),
+            turn_color: game.turn_color(),
         }
     }
 }

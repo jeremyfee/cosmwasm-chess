@@ -87,6 +87,28 @@
     {
       "type": "object",
       "required": [
+        "declare_timeout"
+      ],
+      "properties": {
+        "declare_timeout": {
+          "type": "object",
+          "required": [
+            "game_id"
+          ],
+          "properties": {
+            "game_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "move"
       ],
       "properties": {

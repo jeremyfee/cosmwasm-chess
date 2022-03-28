@@ -5,6 +5,7 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
+use serde_json_wasm::to_string;
 
 use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessMove};
 use crate::error::ContractError;
@@ -57,6 +58,7 @@ pub fn execute(
         ExecuteMsg::CancelChallenge { challenge_id } => {
             execute_cancel_challenge(deps, challenge_id, sender)
         }
+        ExecuteMsg::DeclareTimeout { game_id } => execute_declare_timeout(deps, game_id, height),
         ExecuteMsg::Move { action, game_id } => execute_move(deps, game_id, sender, action, height),
     }
 }
@@ -117,7 +119,6 @@ fn execute_accept_challenge(
         moves: vec![],
         start_height,
         status: None,
-        turn_color: Some(CwChessColor::White),
     };
     // update storage
     let games_map = get_games_map();
@@ -192,6 +193,25 @@ fn execute_create_challenge(
         ))
 }
 
+fn execute_declare_timeout(
+    deps: DepsMut,
+    game_id: u64,
+    height: u64,
+) -> Result<Response, ContractError> {
+    let games_map = get_games_map();
+    let game = games_map.update(deps.storage, game_id, |game| -> Result<_, ContractError> {
+        match game {
+            None => Err(ContractError::GameNotFound {}),
+            Some(mut game) => match game.check_timeout(height)? {
+                None => Err(ContractError::GameNotTimedOut {}),
+                _ => Ok(game),
+            },
+        }
+    })?;
+
+    Ok(Response::new().add_attribute("game", to_string(&GameSummary::from(&game)).unwrap()))
+}
+
 fn execute_move(
     deps: DepsMut,
     game_id: u64,
@@ -216,11 +236,7 @@ fn execute_move(
         }
     })?;
 
-    Ok(Response::new()
-        .add_attribute("game_id", game.game_id.to_string())
-        .add_attribute("move", format!("{:?}", action))
-        .add_attribute("player1", game.player1)
-        .add_attribute("player2", game.player2))
+    Ok(Response::new().add_attribute("game", to_string(&GameSummary::from(&game)).unwrap()))
 }
 
 fn query_get_challenge(deps: Deps, challenge_id: u64) -> StdResult<Challenge> {

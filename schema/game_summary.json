@@ -71,7 +71,9 @@
         "draw_declared",
         "stalemate",
         "white_checkmates",
-        "white_resigns"
+        "white_resigns",
+        "black_timeout",
+        "white_timeout"
       ]
     }
   }

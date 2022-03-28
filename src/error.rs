@@ -18,6 +18,8 @@ pub enum ContractError {
     GameAlreadyOver {},
     #[error("game not found")]
     GameNotFound {},
+    #[error("game not timed out")]
+    GameNotTimedOut {},
     #[error("invalid move")]
     InvalidMove {},
     #[error("not your challenge")]

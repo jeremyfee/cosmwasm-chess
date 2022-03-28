@@ -8,7 +8,7 @@ mod tests {
     use cosmwasm_std::testing::{
         mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
     };
-    use cosmwasm_std::{coins, from_binary};
+    use cosmwasm_std::{coins, from_binary, Env};
 
     #[test]
     fn test_initialize() {
@@ -517,7 +517,7 @@ mod tests {
         assert_eq!(game.player1, "white");
         assert_eq!(game.player2, "black");
         assert_eq!(game.status, None);
-        assert_eq!(game.turn_color, Some(CwChessColor::White));
+        assert_eq!(game.turn_color(), Some(CwChessColor::White));
 
         // white resigns
         execute(
@@ -552,5 +552,115 @@ mod tests {
             ContractError::GameAlreadyOver { .. } => {}
             e => panic!("unexpected error: {:?}", e),
         }
+    }
+
+    fn block_env(block: u64) -> Env {
+        let mut env = mock_env();
+        env.block.height = block;
+        env
+    }
+
+    #[test]
+    fn test_timeout() {
+        let mut deps = mock_dependencies();
+
+        // initialize
+        instantiate(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("owner", &[]),
+            InstantiateMsg {},
+        )
+        .unwrap();
+        // create game with timeout
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("black", &[]),
+            ExecuteMsg::CreateChallenge {
+                // 300 blocks/per person @ ~10 blocks/minute => ~30 minutes/person
+                block_time_limit: Some(300),
+                opponent: None,
+                // creator is black
+                play_as: Some(CwChessColor::Black),
+            },
+        )
+        .unwrap();
+        // game created at block 100
+        execute(
+            deps.as_mut(),
+            block_env(100),
+            mock_info("white", &[]),
+            ExecuteMsg::AcceptChallenge { challenge_id: 1 },
+        )
+        .unwrap();
+
+        // first move, time limit starts
+        execute(
+            deps.as_mut(),
+            block_env(300),
+            mock_info("white", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::from("d4"),
+                game_id: 1,
+            },
+        )
+        .unwrap();
+        execute(
+            deps.as_mut(),
+            block_env(310),
+            mock_info("black", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::MakeMove("d5".to_string()),
+                game_id: 1,
+            },
+        )
+        .unwrap();
+
+        // not a timeout yet (time starts after first move)
+        let response = execute(
+            deps.as_mut(),
+            block_env(500),
+            mock_info("black", &[]),
+            ExecuteMsg::DeclareTimeout { game_id: 1 },
+        );
+        match response.unwrap_err() {
+            ContractError::GameNotTimedOut { .. } => {}
+            e => panic!("unexpected error: {:?}", e),
+        }
+
+        execute(
+            deps.as_mut(),
+            block_env(600),
+            mock_info("white", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::from("c4"),
+                game_id: 1,
+            },
+        )
+        .unwrap();
+        execute(
+            deps.as_mut(),
+            block_env(610),
+            mock_info("black", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::MakeMove("dxc4".to_string()),
+                game_id: 1,
+            },
+        )
+        .unwrap();
+        // white timed out
+        let result = execute(
+            deps.as_mut(),
+            block_env(631),
+            mock_info("white", &[]),
+            ExecuteMsg::Move {
+                action: CwChessAction::from("e3"),
+                game_id: 1,
+            },
+        )
+        .unwrap();
+        assert_eq!(result.attributes[0].key, "game");
+        assert_eq!(result.attributes[0].value.contains("white_timeout"), true);
     }
 }
