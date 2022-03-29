@@ -1,0 +1,1 @@
+e5c41a4eb1100f1a19fed53e8d89395812e674ff21de6d865bcd8e56b64003ad  ./target/wasm32-unknown-unknown/release/cosmwasm_chess.wasm

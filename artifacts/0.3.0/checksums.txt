@@ -1,0 +1,1 @@
+480cc787fbf5df894705f9e167778b33efe0a620f8a017abe24dfaa1f87215de  cosmwasm_chess.wasm
