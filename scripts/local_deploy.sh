@@ -135,8 +135,7 @@ fi
 # output commands to use contract
 cat << EOF
 
-## Stop the container
-
+export CONTRACT_ADDR="${CONTRACT_ADDR}";
 
 # junod_execute '{MESSAGE}' --from test-user[2]
 junod_execute() {

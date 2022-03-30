@@ -10,9 +10,9 @@ pub struct InstantiateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     CreateChallenge {
+        block_limit: Option<u64>,
         opponent: Option<String>,
         play_as: Option<CwChessColor>,
-        block_time_limit: Option<u64>,
         // sender is creator
     },
     AcceptChallenge {
@@ -26,7 +26,7 @@ pub enum ExecuteMsg {
     DeclareTimeout {
         game_id: u64,
     },
-    Move {
+    Turn {
         game_id: u64,
         action: CwChessAction,
         // sender is player
@@ -57,24 +57,24 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct GameSummary {
-    pub block_time_limit: Option<u64>,
+    pub block_limit: Option<u64>,
+    pub block_start: u64,
     pub game_id: u64,
     pub player1: String,
     pub player2: String,
     pub status: Option<CwChessGameOver>,
-    pub start_height: u64,
     pub turn_color: Option<CwChessColor>,
 }
 
 impl From<&CwChessGame> for GameSummary {
     fn from(game: &CwChessGame) -> GameSummary {
         GameSummary {
-            block_time_limit: game.block_time_limit,
+            block_limit: game.block_limit,
+            block_start: game.block_start,
             game_id: game.game_id,
             player1: game.player1.to_string(),
             player2: game.player2.to_string(),
             status: game.status.clone(),
-            start_height: game.start_height,
             turn_color: game.turn_color(),
         }
     }

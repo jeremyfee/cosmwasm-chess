@@ -2,9 +2,7 @@ use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use cosmwasm_chess::cwchess::{
-    CwChessAction, CwChessColor, CwChessGame, CwChessGameOver, CwChessMove,
-};
+use cosmwasm_chess::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessGameOver};
 use cosmwasm_chess::msg::{ExecuteMsg, GameSummary, InstantiateMsg, QueryMsg};
 
 fn main() {
@@ -16,7 +14,6 @@ fn main() {
     export_schema(&schema_for!(CwChessAction), &out_dir);
     export_schema(&schema_for!(CwChessColor), &out_dir);
     export_schema(&schema_for!(CwChessGame), &out_dir);
-    export_schema(&schema_for!(CwChessMove), &out_dir);
     export_schema(&schema_for!(CwChessGameOver), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(GameSummary), &out_dir);

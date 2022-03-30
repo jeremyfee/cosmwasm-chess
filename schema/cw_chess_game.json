@@ -3,20 +3,29 @@
   "title": "CwChessGame",
   "type": "object",
   "required": [
+    "block_start",
+    "fen",
     "game_id",
     "moves",
     "player1",
-    "player2",
-    "start_height"
+    "player2"
   ],
   "properties": {
-    "block_time_limit": {
+    "block_limit": {
       "type": [
         "integer",
         "null"
       ],
       "format": "uint64",
       "minimum": 0.0
+    },
+    "block_start": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "fen": {
+      "type": "string"
     },
     "game_id": {
       "type": "integer",
@@ -26,7 +35,19 @@
     "moves": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/CwChessMove"
+        "type": "array",
+        "items": [
+          {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          {
+            "$ref": "#/definitions/CwChessAction"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
       }
     },
     "player1": {
@@ -34,11 +55,6 @@
     },
     "player2": {
       "$ref": "#/definitions/Addr"
-    },
-    "start_height": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
     },
     "status": {
       "anyOf": [
@@ -68,10 +84,10 @@
         {
           "type": "object",
           "required": [
-            "make_move"
+            "move"
           ],
           "properties": {
-            "make_move": {
+            "move": {
               "type": "string"
             }
           },
@@ -104,23 +120,6 @@
         "black_timeout",
         "white_timeout"
       ]
-    },
-    "CwChessMove": {
-      "type": "object",
-      "required": [
-        "action",
-        "block"
-      ],
-      "properties": {
-        "action": {
-          "$ref": "#/definitions/CwChessAction"
-        },
-        "block": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        }
-      }
     }
   }
 }

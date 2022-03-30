@@ -3,17 +3,22 @@
   "title": "GameSummary",
   "type": "object",
   "required": [
+    "block_start",
     "game_id",
     "player1",
-    "player2",
-    "start_height"
+    "player2"
   ],
   "properties": {
-    "block_time_limit": {
+    "block_limit": {
       "type": [
         "integer",
         "null"
       ],
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "block_start": {
+      "type": "integer",
       "format": "uint64",
       "minimum": 0.0
     },
@@ -27,11 +32,6 @@
     },
     "player2": {
       "type": "string"
-    },
-    "start_height": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
     },
     "status": {
       "anyOf": [

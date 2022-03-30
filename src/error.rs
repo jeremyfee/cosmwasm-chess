@@ -22,6 +22,8 @@ pub enum ContractError {
     GameNotTimedOut {},
     #[error("invalid move")]
     InvalidMove {},
+    #[error("invalid position")]
+    InvalidPosition {},
     #[error("not your challenge")]
     NotYourChallenge {},
     #[error("not your turn")]

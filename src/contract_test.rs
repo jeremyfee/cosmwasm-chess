@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::contract::{execute, instantiate, query};
-    use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessGameOver, CwChessMove};
+    use crate::cwchess::{CwChessAction, CwChessColor, CwChessGame, CwChessGameOver};
     use crate::error::ContractError;
     use crate::msg::{ExecuteMsg, GameSummary, InstantiateMsg, QueryMsg};
 
@@ -40,7 +40,7 @@ mod tests {
             mock_env(),
             mock_info("creator", &[]),
             ExecuteMsg::CreateChallenge {
-                block_time_limit: None,
+                block_limit: None,
                 opponent: None,
                 play_as: None,
             },
@@ -56,9 +56,12 @@ mod tests {
         );
         let attrs = response.unwrap().attributes;
         let attr = attrs[0].clone();
-        assert_eq!(&attr.key, "accept_challenge");
-        assert_eq!(&attr.value, "1");
+        assert_eq!(&attr.key, "action");
+        assert_eq!(&attr.value, "accept_challenge");
         let attr = attrs[1].clone();
+        assert_eq!(&attr.key, "challenge_id");
+        assert_eq!(&attr.value, "1");
+        let attr = attrs[2].clone();
         assert_eq!(&attr.key, "game_id");
         assert_eq!(&attr.value, "1");
 
@@ -93,7 +96,7 @@ mod tests {
             mock_env(),
             mock_info("creator", &[]),
             ExecuteMsg::CreateChallenge {
-                block_time_limit: None,
+                block_limit: None,
                 opponent: Some("opponent".to_string()),
                 play_as: None,
             },
@@ -121,9 +124,12 @@ mod tests {
         );
         let attrs = response.unwrap().attributes;
         let attr = attrs[0].clone();
-        assert_eq!(&attr.key, "accept_challenge");
-        assert_eq!(&attr.value, "1");
+        assert_eq!(&attr.key, "action");
+        assert_eq!(&attr.value, "accept_challenge");
         let attr = attrs[1].clone();
+        assert_eq!(&attr.key, "challenge_id");
+        assert_eq!(&attr.value, "1");
+        let attr = attrs[2].clone();
         assert_eq!(&attr.key, "game_id");
         assert_eq!(&attr.value, "1");
     }
@@ -142,7 +148,7 @@ mod tests {
 
         // create a challenge with an opponent
         let msg = ExecuteMsg::CreateChallenge {
-            block_time_limit: None,
+            block_limit: None,
             opponent: Some("opponent".to_string()),
             play_as: None,
         };
@@ -150,8 +156,12 @@ mod tests {
         env.block.height = 456;
         let info = mock_info("creator", &[]);
         let execute_res = execute(deps.as_mut(), env, info, msg);
-        let attr = execute_res.unwrap().attributes[0].clone();
-        assert_eq!(&attr.key, "create_challenge");
+        let attrs = execute_res.unwrap().attributes;
+        let attr = attrs[0].clone();
+        assert_eq!(&attr.key, "action");
+        assert_eq!(&attr.value, "create_challenge");
+        let attr = attrs[1].clone();
+        assert_eq!(&attr.key, "challenge_id");
         assert_eq!(&attr.value, "1");
     }
 
@@ -173,7 +183,7 @@ mod tests {
             mock_env(),
             mock_info("black", &[]),
             ExecuteMsg::CreateChallenge {
-                block_time_limit: None,
+                block_limit: None,
                 opponent: None,
                 // creator is black
                 play_as: Some(CwChessColor::Black),
@@ -194,7 +204,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::AcceptDraw {},
                 game_id: 1,
             },
@@ -209,7 +219,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::OfferDraw("d4".to_string()),
                 game_id: 1,
             },
@@ -221,7 +231,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("black", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::AcceptDraw {},
                 game_id: 1,
             },
@@ -254,7 +264,7 @@ mod tests {
             mock_env(),
             mock_info("one", &[]),
             ExecuteMsg::CreateChallenge {
-                block_time_limit: None,
+                block_limit: None,
                 opponent: None,
                 play_as: Some(CwChessColor::Black),
             },
@@ -291,7 +301,7 @@ mod tests {
             mock_env(),
             mock_info("two", &[]),
             ExecuteMsg::CreateChallenge {
-                block_time_limit: None,
+                block_limit: None,
                 opponent: None,
                 // creator is black
                 play_as: Some(CwChessColor::Black),
@@ -312,7 +322,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("two", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("d4".to_string()),
                 game_id: 1,
             },
@@ -364,7 +374,7 @@ mod tests {
             mock_env(),
             mock_info("black", &[]),
             ExecuteMsg::CreateChallenge {
-                block_time_limit: None,
+                block_limit: None,
                 opponent: None,
                 // creator is black
                 play_as: Some(CwChessColor::Black),
@@ -372,19 +382,13 @@ mod tests {
         )
         .unwrap();
         // opponent can accept
-        let response = execute(
+        execute(
             deps.as_mut(),
             mock_env(),
             mock_info("white", &[]),
             ExecuteMsg::AcceptChallenge { challenge_id: 1 },
-        );
-        let attrs = response.unwrap().attributes;
-        let attr = attrs[0].clone();
-        assert_eq!(&attr.key, "accept_challenge");
-        assert_eq!(&attr.value, "1");
-        let attr = attrs[1].clone();
-        assert_eq!(&attr.key, "game_id");
-        assert_eq!(&attr.value, "1");
+        )
+        .unwrap();
 
         // first move by white
         let mut env = mock_env();
@@ -393,7 +397,7 @@ mod tests {
             deps.as_mut(),
             env,
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("d4".to_string()),
                 game_id: 1,
             },
@@ -405,7 +409,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("c4".to_string()),
                 game_id: 1,
             },
@@ -422,7 +426,7 @@ mod tests {
             deps.as_mut(),
             env,
             mock_info("black", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("d5".to_string()),
                 game_id: 1,
             },
@@ -437,14 +441,8 @@ mod tests {
         assert_eq!(
             game.moves,
             vec![
-                CwChessMove {
-                    action: CwChessAction::MakeMove("d4".to_string()),
-                    block: 123
-                },
-                CwChessMove {
-                    action: CwChessAction::MakeMove("d5".to_string()),
-                    block: 456
-                },
+                (123, CwChessAction::MakeMove("d4".to_string())),
+                (456, CwChessAction::MakeMove("d5".to_string())),
             ]
         );
 
@@ -453,7 +451,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("d5".to_string()),
                 game_id: 1,
             },
@@ -468,7 +466,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("c4".to_string()),
                 game_id: 1,
             },
@@ -494,7 +492,7 @@ mod tests {
             mock_env(),
             mock_info("black", &[]),
             ExecuteMsg::CreateChallenge {
-                block_time_limit: None,
+                block_limit: None,
                 opponent: None,
                 // creator is black
                 play_as: Some(CwChessColor::Black),
@@ -524,7 +522,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::Resign {},
                 game_id: 1,
             },
@@ -543,7 +541,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("d4".to_string()),
                 game_id: 1,
             },
@@ -554,9 +552,10 @@ mod tests {
         }
     }
 
-    fn block_env(block: u64) -> Env {
+    // create an env for a specific block height
+    fn block_env(height: u64) -> Env {
         let mut env = mock_env();
-        env.block.height = block;
+        env.block.height = height;
         env
     }
 
@@ -579,7 +578,7 @@ mod tests {
             mock_info("black", &[]),
             ExecuteMsg::CreateChallenge {
                 // 300 blocks/per person @ ~10 blocks/minute => ~30 minutes/person
-                block_time_limit: Some(300),
+                block_limit: Some(300),
                 opponent: None,
                 // creator is black
                 play_as: Some(CwChessColor::Black),
@@ -600,7 +599,7 @@ mod tests {
             deps.as_mut(),
             block_env(300),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::from("d4"),
                 game_id: 1,
             },
@@ -610,7 +609,7 @@ mod tests {
             deps.as_mut(),
             block_env(310),
             mock_info("black", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("d5".to_string()),
                 game_id: 1,
             },
@@ -633,7 +632,7 @@ mod tests {
             deps.as_mut(),
             block_env(600),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::from("c4"),
                 game_id: 1,
             },
@@ -643,7 +642,7 @@ mod tests {
             deps.as_mut(),
             block_env(610),
             mock_info("black", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::MakeMove("dxc4".to_string()),
                 game_id: 1,
             },
@@ -654,13 +653,13 @@ mod tests {
             deps.as_mut(),
             block_env(631),
             mock_info("white", &[]),
-            ExecuteMsg::Move {
+            ExecuteMsg::Turn {
                 action: CwChessAction::from("e3"),
                 game_id: 1,
             },
         )
         .unwrap();
-        assert_eq!(result.attributes[0].key, "game");
-        assert_eq!(result.attributes[0].value.contains("white_timeout"), true);
+        assert_eq!(result.attributes[2].key, "status");
+        assert_eq!(result.attributes[2].value.contains("WhiteTimeout"), true);
     }
 }

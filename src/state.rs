@@ -21,9 +21,9 @@ pub const STATE: Item<State> = Item::new("state");
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Challenge {
-    pub block_time_limit: Option<u64>,
+    pub block_created: u64,
+    pub block_limit: Option<u64>,
     pub challenge_id: u64,
-    pub created_block: u64,
     pub created_by: Addr,
     pub play_as: Option<CwChessColor>,
     pub opponent: Option<Addr>,

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum CwChessAction {
     AcceptDraw,
+    #[serde(rename = "move")]
     MakeMove(String),
     OfferDraw(String),
     Resign,
@@ -19,6 +20,17 @@ impl From<&str> for CwChessAction {
     }
 }
 
+impl From<&CwChessAction> for GameAction {
+    fn from(action: &CwChessAction) -> GameAction {
+        match action {
+            CwChessAction::AcceptDraw => GameAction::AcceptDraw,
+            CwChessAction::MakeMove(move_str) => GameAction::MakeMove(move_str.to_string()),
+            CwChessAction::OfferDraw(move_str) => GameAction::OfferDraw(move_str.to_string()),
+            CwChessAction::Resign => GameAction::Resign,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CwChessColor {
@@ -27,10 +39,19 @@ pub enum CwChessColor {
 }
 
 impl From<&Color> for CwChessColor {
-    fn from(status: &Color) -> CwChessColor {
-        match status {
+    fn from(color: &Color) -> CwChessColor {
+        match color {
             Color::Black => CwChessColor::Black,
             Color::White => CwChessColor::White,
+        }
+    }
+}
+
+impl From<&CwChessColor> for Color {
+    fn from(color: &CwChessColor) -> Color {
+        match color {
+            CwChessColor::Black => Color::Black,
+            CwChessColor::White => Color::White,
         }
     }
 }
@@ -64,30 +85,20 @@ impl From<&GameOver> for CwChessGameOver {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct CwChessMove {
-    pub action: CwChessAction,
-    pub block: u64,
-}
-
-impl From<&CwChessMove> for GameAction {
-    fn from(chess_move: &CwChessMove) -> GameAction {
-        match &chess_move.action {
-            CwChessAction::AcceptDraw => GameAction::AcceptDraw,
-            CwChessAction::MakeMove(move_str) => GameAction::MakeMove(move_str.to_string()),
-            CwChessAction::OfferDraw(move_str) => GameAction::OfferDraw(move_str.to_string()),
-            CwChessAction::Resign => GameAction::Resign,
-        }
-    }
-}
+pub type CwChessMove = (u64, CwChessAction);
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CwChessGame {
-    // per player block time limit for all moves
+    // per player block limit for all moves
     // starts at first move (not game start_height)
-    pub block_time_limit: Option<u64>,
+    pub block_limit: Option<u64>,
+    // when game was created
+    pub block_start: u64,
+    // board position in FEN
+    // cheaper to load board than executing moves
+    pub fen: String,
+    // game id
     pub game_id: u64,
     // list of moves
     pub moves: Vec<CwChessMove>,
@@ -97,8 +108,6 @@ pub struct CwChessGame {
     pub player2: Addr,
     // status is None while game is being played
     pub status: Option<CwChessGameOver>,
-    // when game was created
-    pub start_height: u64,
 }
 
 impl CwChessGame {
@@ -111,7 +120,7 @@ impl CwChessGame {
         if self.status.is_some() {
             return Err(ContractError::GameAlreadyOver {});
         }
-        self.status = match self.block_time_limit {
+        self.status = match self.block_limit {
             None => None,
             Some(block_time_limit) => {
                 let block_times = self.get_block_times(current_block);
@@ -147,13 +156,14 @@ impl CwChessGame {
     }
 
     pub fn load_game(&self) -> Result<Game, ContractError> {
-        let mut game: Game = Game::default();
-        for chess_move in &self.moves {
-            if game.make_move(&GameAction::from(chess_move)).is_err() {
-                return Err(ContractError::InvalidMove {});
-            }
+        match Game::from_fen(
+            &self.fen,
+            self.draw_offered().as_ref().map(Color::from),
+            None,
+        ) {
+            Ok(game) => Ok(game),
+            Err(_) => Err(ContractError::InvalidPosition {}),
         }
-        Ok(game)
     }
 
     pub fn make_move(
@@ -166,7 +176,7 @@ impl CwChessGame {
             return Err(ContractError::GameAlreadyOver {});
         }
         // check if game timed out
-        if self.check_timeout(chess_move.block)?.is_some() {
+        if self.check_timeout(chess_move.0)?.is_some() {
             // check_timeout updates and returns status
             return Ok(&self.status);
         }
@@ -178,11 +188,12 @@ impl CwChessGame {
         if player_to_move != player {
             return Err(ContractError::NotYourTurn {});
         }
-        match game.make_move(&GameAction::from(&chess_move)) {
+        match game.make_move(&GameAction::from(&chess_move.1)) {
             Err(_) => Err(ContractError::InvalidMove {}),
             Ok(status) => {
                 self.moves.push(chess_move);
                 self.status = status.as_ref().map(CwChessGameOver::from);
+                self.fen = game.to_fen(0, (self.moves.len() / 2) as u8).unwrap();
                 Ok(&self.status)
             }
         }
@@ -200,6 +211,22 @@ impl CwChessGame {
         }
     }
 
+    // check whether draw was offered on previous turn
+    // return color that offered draw
+    fn draw_offered(&self) -> Option<CwChessColor> {
+        match &self.moves.last() {
+            Some((_, CwChessAction::OfferDraw(_))) => {
+                match self.turn_color() {
+                    None => None,
+                    // current turn means opposite color offered draw
+                    Some(CwChessColor::Black) => Some(CwChessColor::White),
+                    Some(CwChessColor::White) => Some(CwChessColor::Black),
+                }
+            }
+            _ => None,
+        }
+    }
+
     // get number of blocks used by each player
     fn get_block_times(&self, current_block: u64) -> (u64, u64) {
         // block times for (white, black)
@@ -208,7 +235,7 @@ impl CwChessGame {
         if self.moves.is_empty() {
             return block_times;
         }
-        let mut blocks: Vec<u64> = self.moves.iter().map(|m| -> u64 { m.block }).collect();
+        let mut blocks: Vec<u64> = self.moves.iter().map(|m| -> u64 { m.0 }).collect();
         // if game not over, add current block to end
         if self.status.is_none() {
             blocks.push(current_block);
