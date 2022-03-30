@@ -24,7 +24,7 @@ domove() {
   echo "${MOVE_COUNT} ${2}"
   junod_execute "{\"turn\": {\"game_id\": ${GAME_ID}, \"action\": {\"move\": \"$2\"}}}" --from "${1}"
   # let block execute
-  sleep 5
+  sleep 6
 }
 
 # https://en.wikipedia.org/wiki/World_Chess_Championship_1972#Game_6:_Fischer%E2%80%93Spassky,_1%E2%80%930_(QGD_Tartakower)
