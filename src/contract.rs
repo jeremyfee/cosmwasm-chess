@@ -197,7 +197,11 @@ fn execute_create_challenge(
     Ok(Response::new()
         .add_attribute("action", "create_challenge")
         .add_attribute("challenge_id", challenge_id.to_string())
-        .add_attribute("created_by", created_by))
+        .add_attribute("created_by", created_by)
+        .add_attribute(
+            "opponent",
+            opponent.unwrap_or_else(|| Addr::unchecked("none")),
+        ))
 }
 
 fn execute_declare_timeout(
